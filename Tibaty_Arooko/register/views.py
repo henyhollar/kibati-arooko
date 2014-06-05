@@ -149,6 +149,9 @@ class UserDetail(generics.RetrieveUpdateAPIView):
     serializer_class = UpdateSerializer
     permission_classes = (permissions.IsAuthenticated,)
 
+    def post_save(self, obj, created=False):
+        task_request(obj, 'www.arooko.ngrok.com', 'update_user', 'post')
+
 
 class UserInformation(generics.RetrieveAPIView):
     def get_queryset(self):
@@ -227,6 +230,9 @@ class GlueUser(generics.UpdateAPIView):
 
         return context
 
+    def post_save(self, obj, created=False):
+        task_request(obj, 'www.arooko.ngrok.com', 'register_user', 'post')
+
 
 class ChangeDefault(generics.UpdateAPIView):
     def get_queryset(self):
@@ -237,6 +243,9 @@ class ChangeDefault(generics.UpdateAPIView):
     serializer_class = ChangeDefaultSerializer
     permission_classes = (permissions.IsAuthenticated,)
     lookup_field = 'username'
+
+    def post_save(self, obj, created=False):
+        task_request(obj, 'www.arooko.ngrok.com', 'register_user', 'post')
 
 
 class SessionView(APIView):
