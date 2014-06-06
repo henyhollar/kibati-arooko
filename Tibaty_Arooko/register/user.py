@@ -21,7 +21,7 @@ class UserBehaviour(object):
     @property
     def get_permission(self):
         """
-        Gets the user who is the master
+        Gets the user who is the up-link
         """
         return self._obj.permission
 
@@ -69,7 +69,7 @@ class UserBehaviour(object):
                 self._obj.set_password(reset_password)
                 message_as_email(data)
             else:
-                raise generics.PermissionDenied
+                message_as_sms(data)
 
 
         else:
@@ -132,17 +132,18 @@ class UserBehaviour(object):
             self._obj.hierarchy = 'master'
             reset_password = User.objects.make_random_password(length=10, allowed_chars='abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789')
             print reset_password
+            self._obj.set_password(reset_password)
             #send to the user
             data = {
                 'subject': 'Password Reset',
                 'message': 'Dear customer, your new password is:' + reset_password + '. Have the best re-charging experience ever! ',
                 'phone': self._obj.username
             }
+
             if self._obj.email is not None or self._obj.email is not ' ':
-                self._obj.set_password(reset_password)
                 message_as_email(data)
             else:
-                raise generics.PermissionDenied
+                message_as_sms(data)
 
         else:
             self._obj.hierarchy = 'slave'

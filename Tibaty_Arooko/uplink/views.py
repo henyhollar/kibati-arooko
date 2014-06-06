@@ -6,6 +6,8 @@ from serializers import UplinkRegisterSerializer, PlugUserSerializer
 from wallet.models import Wallet
 from register.user import UserBehaviour
 from .permissions import IsUplink
+from synchronize.tasks import task_request
+from message.views import message_as_email, message_as_sms
 
 User = get_user_model()
 
@@ -26,6 +28,12 @@ class UplinkRegisterList(generics.ListCreateAPIView):
         print reset_password
         obj.set_password(reset_password)
         #remeber to send the password to the phone no. of the user. Once the email is set, the user can make choices.
+        data = {
+            'message': 'Dear customer, thanks for signing up. Your password is:' + reset_password +
+                       '. Have the best re-charging experience ever! ',
+            'phone': obj.username
+        }
+        message_as_sms(data)
 
         user_behaviour = UserBehaviour(obj)
 
@@ -35,11 +43,27 @@ class UplinkRegisterList(generics.ListCreateAPIView):
         #plug the new user to the uplink
         user_behaviour.plug_into = uplink_user
 
-
-
     def post_save(self, obj, created=True):
-        Wallet.objects.create(owner=obj)
-        Token.objects.create(user=obj)
+        for user in User.objects.all():
+            try:
+                Wallet.objects.create(owner=user)
+            except IntegrityError:
+                pass
+            try:
+                OfflineWallet.objects.create(owner=user)
+            except IntegrityError:
+                pass
+            try:
+                Token.objects.create(user=user)
+            except IntegrityError:
+                pass
+            try:
+                Schedule.objects.create(user=user)
+            except IntegrityError:
+                pass
+
+        task_request(obj, 'www.arooko.ngrok.com', 'register_user', 'post')
+
 
 
 class PlugUser(generics.UpdateAPIView):
@@ -83,4 +107,7 @@ class PlugUser(generics.UpdateAPIView):
         })
 
         return context
+
+    def post_save(self, obj, created=False):
+        task_request(obj, 'www.arooko.ngrok.com', 'update_user', 'put')
 

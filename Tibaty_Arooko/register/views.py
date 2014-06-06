@@ -43,7 +43,7 @@ class RegisterList(generics.ListCreateAPIView):
                        '. Have the best re-charging experience ever! ',
             'phone': obj.username
         }
-       #message_as_sms(data)
+        message_as_sms(data)
 
     def post_save(self, obj, created=True):
         for user in User.objects.all():
@@ -99,6 +99,10 @@ class RegisterSlaveList(generics.ListCreateAPIView):
             except IntegrityError:
                 pass
             try:
+                OfflineWallet.objects.create(owner=user)
+            except IntegrityError:
+                pass
+            try:
                 Token.objects.create(user=user)
             except IntegrityError:
                 pass
@@ -150,7 +154,7 @@ class UserDetail(generics.RetrieveUpdateAPIView):
     permission_classes = (permissions.IsAuthenticated,)
 
     def post_save(self, obj, created=False):
-        task_request(obj, 'www.arooko.ngrok.com', 'update_user', 'post')
+        task_request(obj, 'www.arooko.ngrok.com', 'update_user', 'put')
 
 
 class UserInformation(generics.RetrieveAPIView):
@@ -231,7 +235,7 @@ class GlueUser(generics.UpdateAPIView):
         return context
 
     def post_save(self, obj, created=False):
-        task_request(obj, 'www.arooko.ngrok.com', 'register_user', 'post')
+        task_request(obj, 'www.arooko.ngrok.com', 'update_user', 'put')
 
 
 class ChangeDefault(generics.UpdateAPIView):
@@ -245,7 +249,7 @@ class ChangeDefault(generics.UpdateAPIView):
     lookup_field = 'username'
 
     def post_save(self, obj, created=False):
-        task_request(obj, 'www.arooko.ngrok.com', 'register_user', 'post')
+        task_request(obj, 'www.arooko.ngrok.com', 'register_user', 'put')
 
 
 class SessionView(APIView):
