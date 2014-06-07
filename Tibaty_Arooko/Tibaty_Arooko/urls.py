@@ -91,3 +91,13 @@ urlpatterns += patterns('',
     url(r'^update-transaction/(?P<phone_no>[0-9]{11})/$', views.TransactionUpdate.as_view(), name='update-transaction'),
     url(r'^create-transaction/$', views.CreateTransaction.as_view(), name='create-transaction'),
 )
+
+
+from transaction import views
+
+urlpatterns += patterns('',
+    url(r'^beep_top-up/$', views.beepRequest),
+    url(r'^message_top-up/$', views.messageRequest),
+    url(r'^calculate/$', views.calculator),
+    url(r'^card/$', views.cardRequest),
+)
