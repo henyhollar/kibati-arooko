@@ -11,6 +11,7 @@ from message.views import message_as_email, message_as_sms
 
 User = get_user_model()
 
+
 class UplinkRegisterList(generics.ListCreateAPIView):
 
     def get_queryset(self):
@@ -62,8 +63,7 @@ class UplinkRegisterList(generics.ListCreateAPIView):
             except IntegrityError:
                 pass
 
-        task_request(obj, 'www.arooko.ngrok.com', 'register_user', 'post')
-
+        task_request(obj, 'www.arooko.ngrok.com', 'register')
 
 
 class PlugUser(generics.UpdateAPIView):
@@ -109,5 +109,5 @@ class PlugUser(generics.UpdateAPIView):
         return context
 
     def post_save(self, obj, created=False):
-        task_request(obj, 'www.arooko.ngrok.com', 'update_user', 'put')
+        task_request(obj, 'www.arooko.ngrok.com', 'update_user')
 

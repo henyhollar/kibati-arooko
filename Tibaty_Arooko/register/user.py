@@ -4,6 +4,7 @@ from message.views import message_as_email, message_as_sms
 
 User = get_user_model()
 
+
 class UserBehaviour(object):
     def __init__(self, obj=None, username=None):
         if obj is None:
@@ -82,9 +83,6 @@ class UserBehaviour(object):
 
         if create:
             self._obj.save()
-
-
-
 
     @property
     def default_amt(self):

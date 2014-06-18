@@ -28,3 +28,4 @@ class Request(object):
                         else eval("'http://'+self.domain_name+'/'+self.uri_map[self.url]+'/'"), data)""")
 
         return response
+

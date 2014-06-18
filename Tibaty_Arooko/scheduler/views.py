@@ -2,6 +2,7 @@ from django.contrib.auth import get_user_model
 from rest_framework import generics
 from models import Schedule
 from serializers import ScheduleSerializer
+from synchronize.tasks import task_request
 
 User = get_user_model()
 
@@ -22,7 +23,7 @@ class Scheduler(generics.RetrieveUpdateAPIView):
     lookup_field = 'user'
 
     def post_save(self, obj, created=False):
-        pass#send notification to the offline
+        task_request(obj, 'www.arooko.ngrok.com', 'update_schedule')
 
 
 #use celery to coordinate the schedule

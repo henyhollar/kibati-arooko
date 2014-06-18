@@ -97,5 +97,6 @@ def message_as_email(data):
 def message_as_sms(data):
          messanger('arookoSMS', data['message'], data['phone'])
 
+
 def message(request):
     message_as_sms(request.POST['data'])

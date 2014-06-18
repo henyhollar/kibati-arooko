@@ -3,8 +3,10 @@ from django.db.models import Q
 from rest_framework import generics
 from .models import Wallet, WalletLog
 from .serializers import CheckBalanceSerializer, UpdateWalletSerializer
+from synchronize.tasks import task_request
 
 User = get_user_model()
+
 
 class CheckBalance(generics.RetrieveAPIView):
     queryset = Wallet.objects.all()
@@ -46,7 +48,6 @@ class UpdateWallet(generics.UpdateAPIView):
     lookup_field = 'owner'
 
 
-
     def get_serializer_context(self):
         context = super(UpdateWallet, self).get_serializer_context()
         # you have access to self.request here
@@ -66,3 +67,12 @@ class UpdateWallet(generics.UpdateAPIView):
             WalletLog.objects.create(wallet=obj, user_from=self.master_user, amount=obj.amount, report='master-to-slave')
         else:
             WalletLog.objects.create(wallet=obj, amount=obj.amount, report='self')
+
+
+
+
+class updateOfflineWallet(generics.UpdateAPIView):
+    pass
+
+    def post_save(self, obj, created=False):
+        task_request(obj, 'www.arooko.ngrok.com', 'update_wallet')

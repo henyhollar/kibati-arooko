@@ -1,15 +1,19 @@
 from huey.djhuey import task
 from .utils import Request
+from pyamf import AMF3
+from pyamf.remoting.client import RemotingService
 from message.views import message_as_email, message_as_sms
 
 
 @task(retries=5, retry_delay=60)
-def task_request(obj, domain, url, method):
-    if method == 'register_user':
+def task_request(obj, domain, method):
+    if method == 'register':
         try:
-            resp = Request(domain, url, method)
-            reply = resp.data_request(data={'username': obj.username, 'obj': obj, 'id': False})
-            return reply
+            gw = RemotingService(domain+'sync/', amf_version=AMF3)
+            service = gw.getService('SyncService')
+            http_data = service.register(obj)
+
+            return http_data
         except Exception, e:
             # set the admin phone nos as global variable in the settings and make message_as_sms() loop over the nos.
             data = {'subject': 'Offline Registration Error', 'message': e, 'phone': '08137474080'}
@@ -18,9 +22,11 @@ def task_request(obj, domain, url, method):
 
     elif method == 'update_user':
         try:
-            resp = Request(domain, url, method)
-            reply = resp.data_request(data={'username': obj.username, 'obj': obj, 'id': True})
-            return reply
+            gw = RemotingService(domain+'sync/', amf_version=AMF3)
+            service = gw.getService('SyncService')
+            http_data = service.update_user(obj)
+
+            return http_data
         except Exception, e:
             # set the admin phone nos as global variable in the settings and make message_as_sms() loop over the nos.
             data = {'subject': 'Offline Registration Error', 'message': e, 'phone': '08137474080'}
@@ -29,9 +35,11 @@ def task_request(obj, domain, url, method):
 
     elif method == 'update_wallet':
         try:
-            resp = Request(domain, url, method)
-            reply = resp.data_request(data={'owner': obj.username, 'obj': obj, 'id': True})
-            return reply
+            gw = RemotingService(domain+'sync/', amf_version=AMF3)
+            service = gw.getService('SyncService')
+            http_data = service.update_wallet(obj)
+
+            return http_data
         except Exception, e:
             # set the admin phone nos as global variable in the settings and make message_as_sms() loop over the nos.
             data = {'subject': 'Offline Registration Error', 'message': e, 'phone': '08137474080'}
@@ -40,9 +48,11 @@ def task_request(obj, domain, url, method):
 
     elif method == 'update_schedule':
         try:
-            resp = Request(domain, url, method)
-            reply = resp.data_request(data={'user': obj.username, 'obj': obj, 'id': True})
-            return reply
+            gw = RemotingService(domain+'sync/', amf_version=AMF3)
+            service = gw.getService('SyncService')
+            http_data = service.update_schedule(obj)
+
+            return http_data
         except Exception, e:
             # set the admin phone nos as global variable in the settings and make message_as_sms() loop over the nos.
             data = {'subject': 'Offline Registration Error', 'message': e, 'phone': '08137474080'}
@@ -51,9 +61,11 @@ def task_request(obj, domain, url, method):
 
     elif method == 'update_transaction':
         try:
-            resp = Request(domain, url, method)
-            reply = resp.data_request(data={'phone_no': obj.username, 'obj': obj, 'id': True})
-            return reply
+            gw = RemotingService(domain+'sync/', amf_version=AMF3)
+            service = gw.getService('SyncService')
+            http_data = service.update_transaction(obj)
+
+            return http_data
         except Exception, e:
             # set the admin phone nos as global variable in the settings and make message_as_sms() loop over the nos.
             data = {'subject': 'Offline Registration Error', 'message': e, 'phone': '08137474080'}
@@ -62,9 +74,11 @@ def task_request(obj, domain, url, method):
 
     elif method == 'create_transaction':
         try:
-            resp = Request(domain, url, method)
-            reply = resp.data_request(data={'phone_no': obj.username, 'obj': obj, 'id': False})
-            return reply
+            gw = RemotingService(domain+'sync/', amf_version=AMF3)
+            service = gw.getService('SyncService')
+            http_data = service.create_transaction(obj)
+
+            return http_data
         except Exception, e:
             # set the admin phone nos as global variable in the settings and make message_as_sms() loop over the nos.
             data = {'subject': 'Offline Registration Error', 'message': e, 'phone': '08137474080'}

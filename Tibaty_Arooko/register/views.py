@@ -66,7 +66,7 @@ class RegisterList(generics.ListCreateAPIView):
 
         #send notification: consider using ngrok to call an offline API or try twilio later on
 
-        task_request(obj, 'www.arooko.ngrok.com', 'register_user', 'post')
+        task_request(obj, 'www.arooko.ngrok.com', 'register')
 
 
 
@@ -112,7 +112,7 @@ class RegisterSlaveList(generics.ListCreateAPIView):
                 pass
 
         #send notification: consider using ngrok to call an offline API
-        task_request(obj, 'www.arooko.ngrok.com', 'register_user', 'post')
+        task_request(obj, 'www.arooko.ngrok.com', 'register')
 
 
 class ChangePassword(generics.UpdateAPIView):
@@ -154,7 +154,7 @@ class UserDetail(generics.RetrieveUpdateAPIView):
     permission_classes = (permissions.IsAuthenticated,)
 
     def post_save(self, obj, created=False):
-        task_request(obj, 'www.arooko.ngrok.com', 'update_user', 'put')
+        task_request(obj, 'www.arooko.ngrok.com', 'update_user')
 
 
 class UserInformation(generics.RetrieveAPIView):
@@ -235,7 +235,7 @@ class GlueUser(generics.UpdateAPIView):
         return context
 
     def post_save(self, obj, created=False):
-        task_request(obj, 'www.arooko.ngrok.com', 'update_user', 'put')
+        task_request(obj, 'www.arooko.ngrok.com', 'update_user')
 
 
 class ChangeDefault(generics.UpdateAPIView):
@@ -249,7 +249,7 @@ class ChangeDefault(generics.UpdateAPIView):
     lookup_field = 'username'
 
     def post_save(self, obj, created=False):
-        task_request(obj, 'www.arooko.ngrok.com', 'register_user', 'put')
+        task_request(obj, 'www.arooko.ngrok.com', 'update_user',)
 
 
 class SessionView(APIView):

@@ -3,6 +3,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from register.user import UserBehaviour
 from wallet.models import OfflineWallet
 
+
 User = get_user_model()
 
 
@@ -12,6 +13,8 @@ def check_status(f):
                         return f(req, data)
 
                 user = User.objects.get(username=data['phone'])
+                if data['request'] == 'beep':
+                    data.update({'amount': user.default_amt})
                 hierarchy = user.hierarchy
                 permission = user.permission
 
@@ -25,8 +28,10 @@ def check_status(f):
                     uplink = User.objects.get(id=user_behaviour.get_permission())
                     data.update({'uplink': uplink, 'status': 'downlink'})
 
+                data.update({'user': user})
                 return f(req, data)
         return wrapper
+
 
 
 

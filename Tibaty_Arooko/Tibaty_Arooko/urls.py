@@ -84,20 +84,13 @@ urlpatterns += patterns('',
 from synchronize import views
 
 urlpatterns += patterns('',
-    url(r'^offline-register/$', views.OfflineRegisterUser.as_view(), name='offline-register'),
-    url(r'^offline-update/(?P<username>[0-9]{11})/$', views.OfflineUserUpdate.as_view(), name='offline-update'),
-    url(r'^update-wallet/(?P<owner>[0-9]{11})/$', views.WalletUpdate.as_view(), name='update-wallet'),
-    url(r'^offline-schedule/(?P<user>[0-9]{11})/$', views.OfflineScheduleUpdate.as_view(), name='offline-schedule'),
-    url(r'^update-transaction/(?P<phone_no>[0-9]{11})/$', views.TransactionUpdate.as_view(), name='update-transaction'),
-    url(r'^create-transaction/$', views.CreateTransaction.as_view(), name='create-transaction'),
+    url(r'^sync/$', views.sync),
+
 )
 
 
 from transaction import views
 
 urlpatterns += patterns('',
-    url(r'^beep_top-up/$', views.beepRequest),
-    url(r'^message_top-up/$', views.messageRequest),
-    url(r'^calculate/$', views.calculator),
-    url(r'^card/$', views.cardRequest),
+   url(r'^action/$', views.agw),
 )

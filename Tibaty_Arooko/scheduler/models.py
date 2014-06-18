@@ -7,10 +7,11 @@ from pytz import utc
 
 class Schedule(models.Model):
     user = models.ForeignKey(base.AUTH_USER_MODEL, related_name='schedule', unique=True)
+    amount = models.FloatField()
     date = models.DateField(default=datetime.utcnow().date())
     time = models.TimeField(default=datetime.utcnow().time())
-    frequency = models.IntegerField(default=0)
-    due_dates = models.CommaSeparatedIntegerField(default=0, max_length=31)
+    frequency = models.IntegerField(default=0)  # yearly not allowed
+    due_dates = models.CommaSeparatedIntegerField(default=0, max_length=31) # with this, the start date (above) will have to be the first of the registered days.
     type = models.CharField(default='normal', max_length=10)
     phone_no = models.CharField(max_length=11, blank=True)
     status = models.BooleanField(default=False)  # active or de-active
