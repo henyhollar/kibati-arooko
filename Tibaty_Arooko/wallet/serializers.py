@@ -68,5 +68,37 @@ class UpdateWalletSerializer(serializers.ModelSerializer):
         return instance
 
 
+class UpdateOfflineWalletSerializer(serializers.ModelSerializer):
+    """
+    API to update wallet
+    """
+
+    class Meta:
+        model = Wallet
+        fields = ('amount', 'walletID')
+
+    def restore_object(self, attrs, instance=None):
+        assert instance
+        if self.context['kwargs'].get('uplink_user', False):
+            uplink_wallet = Wallet.objects.get(owner=self.context['kwargs']['uplink_user'])
+            uplink_wallet = UserBehaviour.subtract_from_wallet(uplink_wallet, attrs['amount'])
+            uplink_wallet.save()
+
+            instance = UserBehaviour.add_to_wallet(instance, attrs['amount'])
+            return instance
+
+        elif self.context['kwargs'].get('master_user', False):
+            master_wallet = Wallet.objects.get(owner=self.context['kwargs']['master_user'])
+            master_wallet = UserBehaviour.subtract_from_wallet(master_wallet, attrs['amount'])
+            master_wallet.save()
+
+            instance = UserBehaviour.add_to_wallet(instance, attrs['amount'])
+            return instance
+
+        owner_wallet = Wallet.objects.get(owner=self.context['kwargs']['owner'])
+        owner_wallet = UserBehaviour.subtract_from_wallet(owner_wallet, attrs['amount'])
+        owner_wallet.save()
+        instance = UserBehaviour.add_to_wallet(instance, attrs['amount'])
+        return instance
 
 

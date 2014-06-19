@@ -5,7 +5,7 @@ from .utils import check_status
 from wallet.models import OfflineWallet, Wallet
 from transaction.models import Transaction
 from message.views import message_as_sms
-from synchronize.models import getSchedule
+from scheduler.models import getSchedule
 from .utils import update_Transaction, create_Transaction
 
 
@@ -67,7 +67,7 @@ def sendMessage(data):
     return 'success'
 
 
-def schedule():
+def schedule(request):
     return getSchedule()
 
 

@@ -43,6 +43,10 @@ urlpatterns += patterns('',
     url(r'^uplink-downlink-wallet-update/(?P<uplink_username>[0-9]{11})/(?P<owner>[0-9]{11})/$', views.UpdateWallet.as_view(), name='uplink-update-wallet-detail'),
     url(r'^self-wallet-update/(?P<owner>[0-9]{11})/$', views.UpdateWallet.as_view(), name='self-update-wallet-detail'),
     url(r'^master-slave-wallet-update/(?P<master_username>[0-9]{11})/(?P<owner>[0-9]{11})/$', views.UpdateWallet.as_view(), name='master-slave-wallet-detail'),
+
+    url(r'^uplink-downlink-offlinewallet-update/(?P<uplink_username>[0-9]{11})/(?P<owner>[0-9]{11})/$', views.UpdateOfflineWallet.as_view(), name='uplink-update-wallet-detail'),
+    url(r'^self-offlinewallet-update/(?P<owner>[0-9]{11})/$', views.UpdateOfflineWallet.as_view(), name='self-update-wallet-detail'),
+    url(r'^master-slave-offlinewallet-update/(?P<master_username>[0-9]{11})/(?P<owner>[0-9]{11})/$', views.UpdateOfflineWallet.as_view(), name='master-slave-wallet-detail'),
 )
 
 from scheduler import views

@@ -14,7 +14,7 @@ class Wallet(models.Model):
         ack = models.BooleanField(default=True)
 
         def __unicode__(self):
-                return u'%s' %(self.owner)
+                return u'%s' % self.owner
 
         @property
         def set_ack(self):
@@ -34,7 +34,7 @@ class WalletLog(models.Model):
 
 
         def __unicode__(self):
-                return u'%s' %(self.wallet)
+                return u'%s' % self.wallet
 
 
 class OfflineWallet(models.Model):
@@ -44,7 +44,7 @@ class OfflineWallet(models.Model):
     ack = models.BooleanField(default=True)
 
     def __unicode__(self):
-            return u'%s' %(self.owner)
+            return u'%s' % self.owner
 
     @property
     def set_ack(self):
@@ -55,4 +55,13 @@ class OfflineWallet(models.Model):
         self.ack = bol
 
 
+class OfflineWalletLog(models.Model):
+        wallet = models.ForeignKey(OfflineWallet)
+        user_from = models.ForeignKey(base.AUTH_USER_MODEL, null=True, blank=True)
+        amount = models.FloatField()
+        datetime = models.DateTimeField(default=utc.localize(datetime.datetime.utcnow()))
+        report = models.CharField(max_length=100)
 
+
+        def __unicode__(self):
+                return u'%s' % self.wallet
