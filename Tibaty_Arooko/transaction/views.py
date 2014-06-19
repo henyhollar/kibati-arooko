@@ -6,6 +6,7 @@ from wallet.models import OfflineWallet, Wallet
 from transaction.models import Transaction
 from message.views import message_as_sms
 from synchronize.models import getSchedule
+from .utils import update_Transaction, create_Transaction
 
 
 User = get_user_model()
@@ -40,6 +41,7 @@ def updateTransaction(request, data):
         status='ON'
     )
 
+    update_Transaction(data)  # this goes to create transaction online
 
 
 def logger(request, data):
@@ -49,10 +51,12 @@ def logger(request, data):
         cid=data['cid'],
         status='pending'
     )
-    #if 'recipient' in data:
-        #transaction.recipient=data['recipient']
+    if 'recipient' in data:
+        transaction.recipient=data['recipient']
 
     transaction.save()
+
+    create_Transaction(data)  # this goes to create transaction online
 
     return 'successful'
 
@@ -126,4 +130,7 @@ agw = DjangoGateway({"ActionService.beepRequest": beepRequest,
                     "ActionService.sendMessage": sendMessage,
                     "ActionService.schedule": schedule,
 
- })
+})
+
+
+

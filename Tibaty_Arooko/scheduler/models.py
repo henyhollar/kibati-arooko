@@ -18,7 +18,7 @@ class Schedule(models.Model):
     ack = models.BooleanField(default=True)
 
     def __unicode__(self):
-                return u'%s:%s' % (self.user, self.status)
+        return u'%s:%s' % (self.user, self.status)
 
     @property
     def set_ack(self):

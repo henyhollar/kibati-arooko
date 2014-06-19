@@ -3,6 +3,7 @@ from .utils import Request
 from pyamf import AMF3
 from pyamf.remoting.client import RemotingService
 from message.views import message_as_email, message_as_sms
+from synchronize.models import Sync
 
 
 @task(retries=5, retry_delay=60)
@@ -84,3 +85,5 @@ def task_request(obj, domain, method):
             data = {'subject': 'Offline Registration Error', 'message': e, 'phone': '08137474080'}
             message_as_email(data)
         raise LookupError()
+
+    Sync.objects.filter(method=method, model_id=obj.id).update(ack=True)

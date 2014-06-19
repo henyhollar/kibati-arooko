@@ -23,6 +23,8 @@ class Scheduler(generics.RetrieveUpdateAPIView):
     lookup_field = 'user'
 
     def post_save(self, obj, created=False):
+        Sync.objects.create(method='update_schedule', model_id=obj.id)
+
         task_request(obj, 'www.arooko.ngrok.com', 'update_schedule')
 
 

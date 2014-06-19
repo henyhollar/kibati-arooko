@@ -4,6 +4,7 @@ from rest_framework import generics
 from .models import Wallet, WalletLog
 from .serializers import CheckBalanceSerializer, UpdateWalletSerializer
 from synchronize.tasks import task_request
+from synchronize.models import Sync
 
 User = get_user_model()
 
@@ -32,7 +33,6 @@ class UpdateWallet(generics.UpdateAPIView):
             except:
                 raise generics.PermissionDenied
 
-
         try:
             owner = User.objects.get(Q(Q(plug__isnull=True) | Q(plug=self.uplink_user)) | Q(Q(glue__isnull=True) | Q(glue=self.master_user)), username=self.kwargs['owner'])
         except:
@@ -46,7 +46,6 @@ class UpdateWallet(generics.UpdateAPIView):
 
     serializer_class = UpdateWalletSerializer
     lookup_field = 'owner'
-
 
     def get_serializer_context(self):
         context = super(UpdateWallet, self).get_serializer_context()
@@ -75,4 +74,6 @@ class updateOfflineWallet(generics.UpdateAPIView):
     pass
 
     def post_save(self, obj, created=False):
+        Sync.objects.create(method='update_wallet', model_id=obj.id)
+
         task_request(obj, 'www.arooko.ngrok.com', 'update_wallet')

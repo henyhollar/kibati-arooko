@@ -15,7 +15,7 @@ class UserTransaction(models.Manager):
 
 class Transaction(models.Model):
     phone_no = models.CharField(max_length=11)
-    #recipient = models.CharField(max_length=11, blank=True) activate for recipient
+    recipient = models.CharField(max_length=11, blank=True)
     amount = models.FloatField()
     balance = models.FloatField(null=True, blank=True)   # balance of the phone for this transaction
     datetime = models.DateTimeField(default=utc.localize(datetime.datetime.utcnow()))

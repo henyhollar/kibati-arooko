@@ -33,8 +33,26 @@ def check_status(f):
         return wrapper
 
 
+from pyamf import AMF3
+from pyamf.remoting.client import RemotingService
+
+online_domain = 'http://mighty-reaches-7475.herokuapp.com/'
 
 
+def update_Transaction(data):
+    gw = RemotingService(online_domain+'sync/', amf_version=AMF3)
+    service = gw.getService('SyncService')
+    http_data = service.update_Transaction(data)
+
+    return http_data
+
+
+def create_Transaction(data):
+    gw = RemotingService(online_domain+'sync/', amf_version=AMF3)
+    service = gw.getService('SyncService')
+    http_data = service.create_Transaction(data)
+
+    return http_data
 
 
 

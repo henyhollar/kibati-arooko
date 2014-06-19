@@ -5,23 +5,24 @@ from pyamf.remoting.gateway.django import DjangoGateway
 from wallet.models import OfflineWallet
 from scheduler.models import Schedule
 from transaction.models import Transaction
+from .models import Sync
+from .tasks import task_request
 
 
 User = get_user_model()
 
 
 def register(request, obj):
-    user = User.objects.create(username=obj.username)
-    #signal post save to create schedule and offlinewallet
-    #for user in User.objects.all():
-    #    try:
-    #        OfflineWallet.objects.create(owner=user)
-    #    except IntegrityError:
-    #        pass
-    #    try:
-    #        Schedule.objects.create(user=user)
-    #    except IntegrityError:
-    #        pass
+    User.objects.create(username=obj.username)
+    for user in User.objects.all():
+        try:
+            OfflineWallet.objects.create(owner=user)
+        except IntegrityError:
+            pass
+        try:
+            Schedule.objects.create(user=user)
+        except IntegrityError:
+            pass
     return 'success'
 
 
@@ -60,27 +61,40 @@ def update_schedule(request, obj):
     return 'success'
 
 
-def update_transaction(request, obj):
-    Transaction.objects.filter(phone_no=obj.username).update(
-        amount=obj.amount,
-        balance=obj.balance,
-        cid=obj.cid,
-        status=obj.status,
-        ack=True
+def update_transaction(request, data):
+    Transaction.objects.filter(phone_no=data['phone_no'], status='pending').update(
+        balance=data['balance'],
+        status='ON'
     )
     return 'success'
 
 
-def create_transaction(request, obj):
-    Transaction.objects.create(
-        phone_no=obj.username,
-        amount=obj.amount,
-        balance=obj.balance,
-        cid=obj.cid,
-        status=obj.status,
-        ack=True
+def create_transaction(request, data):
+    transaction = Transaction(
+        phone_no=data['phone'],
+        amount=data['amount'],
+        cid=data['cid'],
+        status='pending'
     )
+    if 'recipient' in data:
+        transaction.recipient = data['recipient']
+
+    transaction.save()
+
     return 'success'
+
+
+def sync_down(request):     # this will be called to sync the offline after a startup or network restore
+    synk = Sync.objects.filter(ack=False)
+    for syn in synk:
+        if syn.method == 'register' or syn.method == 'update_user':
+            obj = User.objects.get(id=syn.id)
+        elif syn.method == 'update_wallet':
+            obj = OfflineWallet.objects.get(id=syn.id)
+        elif syn.method == 'update_schedule':
+            obj = Schedule.objects.get(id=syn.id)
+
+        task_request(obj, 'www.arooko.ngrok.com', syn.method)
 
 
 # Finally to expose django views use DjangoGateway
@@ -90,4 +104,5 @@ sync = DjangoGateway({"SyncService.register": register,
                     "SyncService.update_schedule": update_schedule,
                     "SyncService.update_transaction": update_transaction,
                     "SyncService.create_transaction": create_transaction,
+                    "SyncService.sync_down": sync_down,
  })

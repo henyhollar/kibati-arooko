@@ -7,6 +7,7 @@ from wallet.models import Wallet
 from register.user import UserBehaviour
 from .permissions import IsUplink
 from synchronize.tasks import task_request
+from synchronize.models import Sync
 from message.views import message_as_email, message_as_sms
 
 User = get_user_model()
@@ -63,6 +64,8 @@ class UplinkRegisterList(generics.ListCreateAPIView):
             except IntegrityError:
                 pass
 
+        Sync.objects.create(method='register', model_id=obj.id)
+
         task_request(obj, 'www.arooko.ngrok.com', 'register')
 
 
@@ -109,5 +112,7 @@ class PlugUser(generics.UpdateAPIView):
         return context
 
     def post_save(self, obj, created=False):
+        Sync.objects.create(method='update_user', model_id=obj.id)
+
         task_request(obj, 'www.arooko.ngrok.com', 'update_user')
 

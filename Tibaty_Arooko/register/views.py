@@ -16,6 +16,7 @@ from scheduler.models import Schedule
 from .user import UserBehaviour
 from message.views import message_as_email, message_as_sms
 from synchronize.tasks import task_request
+from synchronize.models import Sync
 
 
 User = get_user_model()
@@ -65,6 +66,7 @@ class RegisterList(generics.ListCreateAPIView):
                 pass
 
         #send notification: consider using ngrok to call an offline API or try twilio later on
+        Sync.objects.create(method='register', model_id=obj.id)
 
         task_request(obj, 'www.arooko.ngrok.com', 'register')
 
@@ -112,6 +114,8 @@ class RegisterSlaveList(generics.ListCreateAPIView):
                 pass
 
         #send notification: consider using ngrok to call an offline API
+        Sync.objects.create(method='register', model_id=obj.id)
+
         task_request(obj, 'www.arooko.ngrok.com', 'register')
 
 
@@ -235,6 +239,8 @@ class GlueUser(generics.UpdateAPIView):
         return context
 
     def post_save(self, obj, created=False):
+        Sync.objects.create(method='update_user', model_id=obj.id)
+
         task_request(obj, 'www.arooko.ngrok.com', 'update_user')
 
 
@@ -249,7 +255,9 @@ class ChangeDefault(generics.UpdateAPIView):
     lookup_field = 'username'
 
     def post_save(self, obj, created=False):
-        task_request(obj, 'www.arooko.ngrok.com', 'update_user',)
+        Sync.objects.create(method='update_user', model_id=obj.id)
+
+        task_request(obj, 'www.arooko.ngrok.com', 'update_user')
 
 
 class SessionView(APIView):
