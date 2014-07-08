@@ -68,7 +68,7 @@ class RegisterList(generics.ListCreateAPIView):
         #send notification: consider using ngrok to call an offline API or try twilio later on
         Sync.objects.create(method='register', model_id=obj.id)
 
-        task_request(obj, 'www.arooko.ngrok.com', 'register')
+        task_request(obj, 'www.arooko.ngrok.com', 'register')   # ack sync table if successful
 
 
 

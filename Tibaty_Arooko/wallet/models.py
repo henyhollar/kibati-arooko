@@ -10,7 +10,7 @@ class Wallet(models.Model):
         owner = models.OneToOneField(base.AUTH_USER_MODEL, related_name='wallet', unique=True)
         amount = models.FloatField(default=0.0)
         datetime = models.DateTimeField(default=utc.localize(datetime.datetime.utcnow()))
-        walletID = models.CharField(max_length=10,default="00000")
+        walletID = models.CharField(max_length=10, default="00000")
         ack = models.BooleanField(default=True)
 
         def __unicode__(self):

@@ -94,8 +94,9 @@ def sync_down(request):     # this will be called to sync the offline after a st
         elif syn.method == 'update_schedule':
             obj = Schedule.objects.get(id=syn.id)
 
-        task_request(obj, 'www.arooko.ngrok.com', syn.method)
-
+        res = task_request(obj, 'www.arooko.ngrok.com', syn.method)# the receiver should ack=True
+        if res == 'success':
+            Sync.objects.filter(id=syn.id).update(ack=True)
 
 # Finally to expose django views use DjangoGateway
 sync = DjangoGateway({"SyncService.register": register,

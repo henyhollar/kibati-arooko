@@ -7,9 +7,9 @@ from pytz import utc
 
 class Schedule(models.Model):
     user = models.ForeignKey(base.AUTH_USER_MODEL, related_name='schedule', unique=True)
-    amount = models.FloatField()
-    date = models.DateField(default=datetime.utcnow().date())
-    time = models.TimeField(default=datetime.utcnow().time())
+    amount = models.FloatField(default=100.0)
+    date = models.DateField(default=datetime.now().date)
+    time = models.TimeField(default=datetime.now().time())
     frequency = models.IntegerField(default=0)  # yearly not allowed
     due_dates = models.CommaSeparatedIntegerField(default=0, max_length=31) # with this, the start date (above) will have to be the first of the registered days.
     type = models.CharField(default='normal', max_length=10)
@@ -33,6 +33,6 @@ def getSchedule():
     start = datetime.now()
     end = start + timedelta(hours=1)
 
-    schedule = Schedule.objects.filter(date=start.date(), time__range=(start.time(), end.time()), status=True)
+    schedule = Schedule.objects.select_related('user__username').filter(date=start.date(), time__range=(start.time(), end.time()), status=True)
 
     return schedule

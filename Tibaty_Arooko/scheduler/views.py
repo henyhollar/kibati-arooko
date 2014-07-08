@@ -3,6 +3,7 @@ from rest_framework import generics
 from models import Schedule
 from serializers import ScheduleSerializer
 from synchronize.tasks import task_request
+from synchronize.models import Sync
 
 User = get_user_model()
 
