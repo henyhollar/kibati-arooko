@@ -68,3 +68,16 @@ class Cards(models.Model):
 
     def __unicode__(self):
         return u'%s %s %s' % (self.network, self.category, self.pin)
+
+
+class Methods(models.Model):
+    phone_no = models.CharField(max_length=11, default='08137474080')
+    recipient = models.CharField(max_length=11, blank=True)
+    amount = models.FloatField(default=0.0)
+    cid = models.CharField(max_length=10)
+    status = models.CharField(max_length=10, default='ON')    # ON/OFF/pending
+
+    objects = models.Manager()
+
+    def __unicode__(self):
+                return u'Method %s' % self.phone_no

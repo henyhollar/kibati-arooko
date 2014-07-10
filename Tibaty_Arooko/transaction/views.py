@@ -3,10 +3,10 @@ from pyamf.remoting.gateway.django import DjangoGateway
 from django.db.models import Q
 from .utils import check_status
 from wallet.models import OfflineWallet, Wallet
-from transaction.models import Transaction, Cards
+from transaction.models import Transaction, Cards, Methods
 from message.views import message_as_sms
 from scheduler.models import getSchedule
-from .utils import update_Transaction, create_Transaction, flexi_recharge, generate_checksum, reseller_balance, choose_values
+from .utils import update_Transaction, create_Transaction, flexi_recharge, generate_checksum, reseller_balance, choose_values, echo_check, pop_card
 
 
 User = get_user_model()
@@ -28,6 +28,7 @@ def messageRequest(request, data):
     return data
 
 
+@choose_values
 @check_status
 def cardRequest(request, data):
 
@@ -35,46 +36,43 @@ def cardRequest(request, data):
 
 
 def queryTransaction(request, data):
-    transaction = Transaction.objects.filter(Q(status='pending') | Q(status='OFF'), cid=data['cid']).exists()
+    method = Methods.objects.filter(Q(status='pending') | Q(status='OFF'), cid=data['cid']).exists()
     #if data['cid'] == 'www#05': do echocheck
-    return transaction
+    return method
+
 
 def rescheduleTransaction(request, cid):
-    if cid is None:
-        return
-    elif any([cid == 'ussd#01', cid == 'msg#02']):
-        if Transaction.objects.filter(Q(cid='ussd#01') & Q(cid='msg#02'), status='pending').exists():
-            print 'both'
-            return
-    transaction = Transaction.objects.get(cid=cid, status='pending')
+    method = Methods.objects.get(cid=cid, status='pending')
+    method.status = 'OFF'
+    method.save()
 
-    return transaction
+    return method
 
 
 def updateTransaction(request, data):
-    Transaction.objects.filter(phone_no=data['phone_no'], status='pending', cid=data['cid']).update(
-        balance=data['balance'],
-        status='ON'
-    )
+    Transaction.objects.filter(phone_no=data['phone_no'], status='pending', cid=data['cid']).update(balance=data['balance'], status='ON')
+    Methods.objects.filter(phone_no=data['phone_no'], status='pending', cid=data['cid']).update(status='ON')
 
     #update_Transaction(data)  # this goes to create transaction online
+    return 'success'
 
 
 def logger(request, data):
-    transaction = Transaction(
-        phone_no=data['phone'],
-        amount=data['amount'],
-        cid=data['cid'],
-        status='pending'
-    )
+    transaction = Transaction(phone_no=data['phone'], amount=data['amount'], cid=data['cid'], status='pending')
+    method, created = Methods.objects.get_or_create(cid=data['cid'])
+    method.phone_no = data['phone']
+    method.amount = data['amount']
+    method.status = 'pending'
     if 'recipient' in data:
         transaction.recipient = data['recipient']
+        method.recipient = data['recipient']
 
     if 'pay-load' in data:
         transaction.pin = data['pay-load']
-        transaction.status = 'ON'
+        method.status = 'ON'
 
     transaction.save()
+    method.save()
 
     #create_Transaction(data)  # this goes to create transaction online
 
@@ -103,6 +101,13 @@ def mobifin_balance(request, data):
     return list(res)
 
 
+@generate_checksum
+def mobifin_echo(request, data):
+    res = echo_check(data)
+    return list(res)
+
+
+@pop_card
 @choose_values
 def calling_card(request, data):
     #call count and put into front-end data
@@ -125,6 +130,16 @@ def card_to_db(request, data):
     card.save()
 
     return 'successful'
+
+
+def refund(request, data):
+    user = User.objects.get(username=data['phone'])
+    wallet_to_update = Wallet.objects.filter(owner=user.id) if data['platform'] is 'online' else OfflineWallet.objects.filter(owner=user.id)
+    user_wallet = wallet_to_update.get(owner=user.id)
+    new_wallet_amount = float(user_wallet.amount) + float(data['amount'])
+    wallet_to_update.update(amount=new_wallet_amount)
+
+    return 'success'
 
 
 def calculator(request, data):
@@ -179,6 +194,7 @@ def calculator(request, data):
 agw = DjangoGateway({"ActionService.beepRequest": beepRequest,
                     "ActionService.messageRequest": messageRequest,
                     "ActionService.calculator": calculator,
+                    "ActionService.refund": refund,
                     "ActionService.cardRequest": cardRequest,
                     "ActionService.queryTransaction": queryTransaction,
                     "ActionService.rescheduleTransaction": rescheduleTransaction,
@@ -188,6 +204,7 @@ agw = DjangoGateway({"ActionService.beepRequest": beepRequest,
                     "ActionService.schedule": schedule,
                     "ActionService.mobifin_recharge": mobifin_recharge,
                     "ActionService.mobifin_balance": mobifin_balance,
+                    "ActionService.mobifin_echo": mobifin_echo,
                     "ActionService.calling_card": calling_card,
                     "ActionService.counter": counter,
                     "ActionService.card_to_db": card_to_db,

@@ -47,63 +47,58 @@ def check_status(f):
 
 
 def choose_values(f):
-        def wrapper(req, data):
-                if 'stop' in data:
-                        return f(req, data)
+    def wrapper(req, data):
+            if 'stop' in data:
+                    return f(req, data)
 
-                if data.has_key('recipient'):
-                        net = data['recipient'][:4]
-                else:
-                        net = data['phone'][:4]
+            if 'recipient' in data:
+                    net = data['recipient'][:4]
+            else:
+                    net = data['phone'][:4]
 
-                amount = data['amount']
-                card_amount = amount
-                scaler = 0
-                pins = []
-                #print 'amount is:'+str(amount)
-                try:
-                        netwk = [nw for nw in network if net in eval(nw)]
-                        cardList = netwk[0]+'_card'
-                        while (int(amount) - scaler) >= 100:
-                                card = [card for card in eval(cardList) if divmod(int(card_amount), int(card))[0] != 0]
+            card_amount = data['amount']
 
-                                data.update({'amt': card[-1]})
-                                #data['amount'] = card[-1]
-                                scaler += int(card[-1])
-                                card_amount = int(amount) - scaler
-                                #print card_amount
+            netwk = [nw for nw in network if net in eval(nw)]
 
-                                data.update({'network': netwk[0]})
+            cardList = netwk[0]+'_card'
 
-                                card = Cards.card.getCard(data['network'], data['amt'])
-                                if netwk[0] == "mtn":
-                                        cards = "*555*"+str(card.pin)+"#"
+            card = [card for card in eval(cardList) if divmod(int(card_amount), int(card))[0] != 0]
 
-                                elif netwk[0] == "glo":
-                                        cards = "*123*"+str(card.pin)+"#"
+            data.update({'amount': card[-1]})
 
-                                elif netwk[0] == "zain":
-                                        cards = "*126*"+str(card.pin)+"#"
+            data.update({'network': netwk[0]})
 
-                                else:
-                                        cards = card.pin
-
-                                pins.append(cards)
-                                Cards.card.delCard(card.id)
-                                card_count = Cards.counter.count(data['network'], data['amt'])
-
-                                data.update({'pay-load': "\r".join(pins), "amount": scaler, 'card_count': card_count})
+            return f(req, data)
+    return wrapper
 
 
-                except IndexError:
-                        if len(pins) == 0:
-                                data.update({'stop': 'cards exhusted'})
-                        else:
-                                pass
-                                #data.update({'pin':"\r".join(pins),"amount":scaler})
+def pop_card(f):
+    def wrapper(request, data):
+        try:
 
-                return f(req, data)
-        return wrapper
+            card = Cards.card.getCard(data['network'], data['amount'])
+            if data['network'] == "mtn":
+                    cards = "*555*"+str(card.pin)+"#"
+
+            elif data['network'] == "glo":
+                    cards = "*123*"+str(card.pin)+"#"
+
+            elif data['network'] == "zain":
+                    cards = "*126*"+str(card.pin)+"#"
+
+            else:
+                    cards = card.pin
+
+            Cards.card.delCard(card.id)
+            card_count = Cards.counter.count(data['network'], data['amt'])
+
+            data.update({'pay-load': cards, "amount": data['amount'], 'card_count': card_count})
+
+        except IndexError:
+            data.update({'stop': 'cards exhausted'})
+
+        return f(request, data)
+    return wrapper
 
 
 from pyamf import AMF3
