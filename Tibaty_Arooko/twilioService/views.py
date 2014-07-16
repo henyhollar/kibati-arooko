@@ -3,14 +3,12 @@ from django.core.exceptions import ObjectDoesNotExist
 from twilio.rest import TwilioRestClient
 from twilio import twiml
 from rest_framework.views import APIView
-from rest_framework.response import Response
-from django.http import Http404
-from serializers import TwilioSerializer
 from rest_framework.renderers import XMLRenderer
 from django.http import HttpResponse
-
+from .tasks import twilio_task
 
 User = get_user_model()
+
 
 class Twilio_Make_Call(object):
 
@@ -32,20 +30,17 @@ class Call(APIView):
     """
 
     renderer_classes = (XMLRenderer, )
+
     def get(self, request, format='.xml'):
         return HttpResponse('''<Response><Reject reason='busy' /></Response>''', content_type="text/xml")
 
-
     def post(self, request, format='.xml'):
-        # get user's info like the default_amt if amt is not included and update log and wallet
-        #Note that this will do the online transaction
-        username = request.DATA['From']
-        print username
-        #snippet = self.get_object(username)
-        #serializer = TwilioSerializer(snippet, data=request.DATA)
-        #if serializer.is_valid():
-        #    serializer.save()
-        #    return Response(serializer.data)
+        phone = request.DATA['From'].replace('+234', '0')
+
+        data = {'phone': phone, 'request': 'beep', 'cid': 'www#000', 'platform': 'online'}
+        print data
+        twilio_task(data)
 
         return HttpResponse('''<Response><Reject reason='busy' /></Response>''', content_type="text/xml")
+
 

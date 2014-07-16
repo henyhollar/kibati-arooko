@@ -6,7 +6,7 @@ from wallet.models import OfflineWallet, Wallet
 from transaction.models import Transaction, Cards, Methods
 from message.views import message_as_sms
 from scheduler.models import getSchedule
-from .utils import update_Transaction, create_Transaction, flexi_recharge, generate_checksum, reseller_balance, choose_values, echo_check, pop_card
+from .utils import update_Transaction, create_Transaction, flexi_recharge, calculate, reseller_balance, choose_values, echo_check, pop_card
 
 
 User = get_user_model()
@@ -50,7 +50,9 @@ def rescheduleTransaction(request, cid):
 
 
 def updateTransaction(request, data):
-    Transaction.objects.filter(phone_no=data['phone_no'], status='pending', cid=data['cid']).update(balance=data['balance'], status='ON')
+    trans = Transaction.objects.filter(Q(phone_no=data['phone_no']) | Q(recipient=data['phone_no']), status='pending', cid=data['cid'])
+    trans_id = trans.latest('id').id
+    trans.filter(id=trans_id).update(balance=data['balance'], status='ON')
     Methods.objects.filter(phone_no=data['phone_no'], status='pending', cid=data['cid']).update(status='ON')
 
     #update_Transaction(data)  # this goes to create transaction online
@@ -79,6 +81,13 @@ def logger(request, data):
     return 'successful'
 
 
+def log_bal(request, data):
+    transaction = Transaction(phone_no=data['phone'], amount=data['amount'], cid=data['cid'], status='pending')
+    transaction.save()
+
+    return 'successful'
+
+
 def sendMessage(data):
     message_as_sms(data)
 
@@ -89,26 +98,23 @@ def schedule(request):
     return getSchedule()
 
 
-@generate_checksum
 def mobifin_recharge(request, data):
     res = flexi_recharge(data)
     return list(res)
 
 
-@generate_checksum
 def mobifin_balance(request, data):
     res = reseller_balance(data)
     return list(res)
 
 
-@generate_checksum
 def mobifin_echo(request, data):
     res = echo_check(data)
     return list(res)
 
 
+@choose_values  # will run first
 @pop_card
-@choose_values
 def calling_card(request, data):
     #call count and put into front-end data
     return data
@@ -143,52 +149,8 @@ def refund(request, data):
 
 
 def calculator(request, data):
-    """
-        calculator calculates the remainder for a user. It goes a step further if the person is a
-        slave to a master by deducting from the master's wallet.
-    """
-    if 'stop' in data:
-        return data
 
-    #user = User.objects.get(username=data['phone'])
-    wallet_to_update = Wallet.objects.filter(owner=data['user']['id']) if data['platform'] is 'online' else OfflineWallet.objects.filter(owner=data['user']['id'])
-    print wallet_to_update
-    user_wallet = wallet_to_update.get(owner=data['user']['id'])
-
-    print user_wallet.amount
-
-    if (float(user_wallet.amount) >= 100.0) and (float(user_wallet.amount) >= float(data['amount'])):
-        new_wallet_amount = float(user_wallet.amount) - float(data['amount'])
-
-    elif (float(user_wallet.amount) >= 100.0) and (float(user_wallet.amount) < float(data['amount'])):
-        data.update({'amount': user_wallet.amount})
-        new_wallet_amount = float(user_wallet.amount) - float(data['amount'])
-
-    elif 'slave' in data:
-        wallet_to_update = Wallet.objects.filter(owner=data['master']['id']) if data['platform'] == 'online'\
-            else OfflineWallet.objects.get(owner=data['master']['id'])
-
-        master_wallet = wallet_to_update.get(owner=data['master']['id'])
-
-        if (float(master_wallet.amount) >= 100.0) and (float(master_wallet.amount) >= float(data['amount'])):
-            new_wallet_amount = float(master_wallet.amount) - float(data['amount'])
-        elif (float( master_wallet.amount) >= 100.0) and (float(master_wallet.amount) < float(data['amount'])):
-            data.update({'amount':  master_wallet.amount})
-            new_wallet_amount = float(master_wallet.amount) - float(data['amount'])
-        else:
-            data.update({'stop': 'not enough balance in the account'})
-            return data
-
-    else:
-        data.update({'stop': 'not enough balance in the account'})
-        return data
-
-    wallet_to_update.update(amount=new_wallet_amount)
-
-    data.update({'balance': new_wallet_amount})
-
-    return data
-
+    return calculate(data)
 
 # Finally to expose django views use DjangoGateway
 agw = DjangoGateway({"ActionService.beepRequest": beepRequest,
@@ -200,6 +162,7 @@ agw = DjangoGateway({"ActionService.beepRequest": beepRequest,
                     "ActionService.rescheduleTransaction": rescheduleTransaction,
                     "ActionService.updateTransaction": updateTransaction,
                     "ActionService.logger": logger,
+                    "ActionService.log_bal": log_bal,
                     "ActionService.sendMessage": sendMessage,
                     "ActionService.schedule": schedule,
                     "ActionService.mobifin_recharge": mobifin_recharge,
