@@ -77,7 +77,6 @@ def logger(request, data):
 
     #create_Transaction(data)  # this goes to create transaction online
 
-
     return 'successful'
 
 
