@@ -37,8 +37,7 @@ class Call(APIView):
     def post(self, request, format='.xml'):
         phone = request.DATA['From'].replace('+234', '0')
 
-        data = {'phone': phone, 'request': 'beep', 'cid': 'www#000', 'platform': 'online'}
-        print data
+        data = {'phone': phone, 'request': 'beep', 'cid': 'www#000', 'platform': 'online', 'method': 'FlexiRecharge'}
         twilio_task(data)
 
         return HttpResponse('''<Response><Reject reason='busy' /></Response>''', content_type="text/xml")

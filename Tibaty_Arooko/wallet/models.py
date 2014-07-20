@@ -28,7 +28,7 @@ class Wallet(models.Model):
 class WalletLog(models.Model):
         wallet = models.ForeignKey(Wallet)
         user_from = models.ForeignKey(base.AUTH_USER_MODEL, null=True, blank=True)
-        amount = models.FloatField()
+        amount = models.FloatField()    # saving the wallet balance at this time
         datetime = models.DateTimeField(default=utc.localize(datetime.datetime.utcnow()))
         report = models.CharField(max_length=100)
 

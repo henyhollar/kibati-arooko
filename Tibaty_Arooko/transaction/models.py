@@ -57,10 +57,7 @@ class Cards(models.Model):
     network = models.CharField(max_length=10)
     category = models.CharField(max_length=10)
     pin = models.CharField(max_length=30, unique=True)
-    serial_no = models.CharField(max_length=30)
     datetime = models.DateTimeField(default=utc.localize(datetime.datetime.utcnow()))
-
-
 
     objects = models.Manager()
     counter = CardCounter()

@@ -2,11 +2,11 @@ from django.contrib.auth import get_user_model
 from pyamf.remoting.gateway.django import DjangoGateway
 from django.db.models import Q
 from .utils import check_status
-from wallet.models import OfflineWallet, Wallet
+from wallet.models import OfflineWallet, Wallet, WalletLog, OfflineWalletLog
 from transaction.models import Transaction, Cards, Methods
 from message.views import message_as_sms
 from scheduler.models import getSchedule
-from .utils import update_Transaction, create_Transaction, flexi_recharge, calculate, reseller_balance, choose_values, echo_check, pop_card
+from .utils import update_Transaction, create_Transaction, flexi_recharge, calculate, reseller_balance, choose_values, echo_check, pop_card, fix_recharge
 
 
 User = get_user_model()
@@ -61,17 +61,16 @@ def updateTransaction(request, data):
 
 def logger(request, data):
     transaction = Transaction(phone_no=data['phone'], amount=data['amount'], cid=data['cid'], status='pending')
+
     method, created = Methods.objects.get_or_create(cid=data['cid'])
     method.phone_no = data['phone']
     method.amount = data['amount']
-    method.status = 'pending'
-    if 'recipient' in data:
-        transaction.recipient = data['recipient']
-        method.recipient = data['recipient']
+    method.status = 'pending' if data['cid'] != any(['card#06', 'card#011', 'card#016', 'card#21']) else 'ON'
+
+    transaction.recipient = method.recipient = data['recipient'] if 'recipient' in data else ''
 
     if 'pay-load' in data:
-        transaction.pin = data['pay-load']
-        method.status = 'ON'
+        transaction.pin, method.status = (data['pay-load'], 'ON')
 
     transaction.save()
     method.save()
@@ -103,6 +102,11 @@ def mobifin_recharge(request, data):
     return list(res)
 
 
+def mobifin_card_recharge(request, data):
+    res = fix_recharge(data)
+    return list(res)
+
+
 def mobifin_balance(request, data):
     res = reseller_balance(data)
     return list(res)
@@ -130,8 +134,7 @@ def card_to_db(request, data):
     card = Cards(
         network=data['network'],
         category=data['category'],
-        pin=data['pin'],
-        serial_no=data['serial_no']
+        pin=data['pin']
     )
     card.save()
 
@@ -144,6 +147,9 @@ def refund(request, data):
     user_wallet = wallet_to_update.get(owner=user.id)
     new_wallet_amount = float(user_wallet.amount) + float(data['amount'])
     wallet_to_update.update(amount=new_wallet_amount)
+
+    log = WalletLog(wallet=user_wallet, amount=new_wallet_amount, report='refund') if data['platform'] is 'online' else OfflineWalletLog(wallet=user_wallet, amount=new_wallet_amount, report='refund')
+    log.save()
 
     return 'success'
 
@@ -166,6 +172,7 @@ agw = DjangoGateway({"ActionService.beepRequest": beepRequest,
                     "ActionService.sendMessage": sendMessage,
                     "ActionService.schedule": schedule,
                     "ActionService.mobifin_recharge": mobifin_recharge,
+                    "ActionService.mobifin_card_recharge": mobifin_card_recharge,
                     "ActionService.mobifin_balance": mobifin_balance,
                     "ActionService.mobifin_echo": mobifin_echo,
                     "ActionService.calling_card": calling_card,

@@ -1,4 +1,4 @@
-from huey.djhuey import task
+from huey.djhuey import task, periodic_task, crontab
 from .utils import Request
 from pyamf import AMF3
 from pyamf.remoting.client import RemotingService
@@ -87,3 +87,10 @@ def task_request(obj, domain, method):
         raise LookupError()
 
     Sync.objects.filter(method=method, model_id=obj.id).update(ack=True)
+
+
+@periodic_task(crontab(minute='*/1'))
+def every_five_mins():
+    print 'Every five minutes this will be printed by the consumer'
+
+
