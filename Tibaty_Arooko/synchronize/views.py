@@ -6,11 +6,12 @@ from wallet.models import OfflineWallet
 from scheduler.models import Schedule
 from transaction.models import Transaction
 from .models import Sync
-from .tasks import task_request
+from .tasks import task_request, notification
 
 
 User = get_user_model()
-
+notice = None
+count = 0
 
 def register(request, obj):
     User.objects.create(username=obj.username)
@@ -76,15 +77,22 @@ def create_transaction(request, data):
         cid=data['cid'],
         status='pending'
     )
-    if 'recipient' in data:
-        transaction.recipient = data['recipient']
+    transaction.recipient = data['recipient'] if 'recipient' in data else ''
+
+    if 'pay-load' in data:
+        transaction.pin, transaction.status = (data['pay-load'], 'ON')  # when pin is requested
 
     transaction.save()
 
     return 'success'
 
 
-def sync_down(request):     # this will be called to sync the offline after a startup or network restore
+def sync_down(request):
+    """
+        this will be called to sync the offline after a startup or network restore. The sync table is updated every time
+        an event occurs at various important functions. The sync table is ack after every successful sync, so it will
+        not be called any more.
+    """
     synk = Sync.objects.filter(ack=False)
     for syn in synk:
         if syn.method == 'register' or syn.method == 'update_user':
@@ -93,10 +101,26 @@ def sync_down(request):     # this will be called to sync the offline after a st
             obj = OfflineWallet.objects.get(id=syn.id)
         elif syn.method == 'update_schedule':
             obj = Schedule.objects.get(id=syn.id)
+        elif syn.method == 'update_transaction':
+            obj = Transaction.objects.get(id=syn.id)
+        elif syn.method == 'create_transaction':
+            obj = Transaction.objects.get(id=syn.id)
 
-        res = task_request(obj, 'www.arooko.ngrok.com', syn.method)# the receiver should ack=True
-        if res == 'success':
-            Sync.objects.filter(id=syn.id).update(ack=True)
+        res = task_request(obj, 'www.arooko.ngrok.com', syn.method)     # the receiver should ack=True
+        #if res == 'success':
+            #Sync.objects.filter(id=syn.id).update(ack=True)
+
+
+def notify(request):
+    global notice, count
+    if count != 1:
+        notice = notification.schedule(delay=(60 * 1))  # there should be one at a time
+        count += 1
+
+def revoker(request):
+    global notice
+    notice.revoke()
+
 
 # Finally to expose django views use DjangoGateway
 sync = DjangoGateway({"SyncService.register": register,
@@ -106,4 +130,6 @@ sync = DjangoGateway({"SyncService.register": register,
                     "SyncService.update_transaction": update_transaction,
                     "SyncService.create_transaction": create_transaction,
                     "SyncService.sync_down": sync_down,
+                    "SyncService.notify": notify,
+                    "SyncService.revoker": revoker,
  })

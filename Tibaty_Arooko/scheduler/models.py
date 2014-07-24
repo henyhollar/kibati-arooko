@@ -15,7 +15,7 @@ class Schedule(models.Model):
     type = models.CharField(default='normal', max_length=10)
     phone_no = models.CharField(max_length=11, blank=True)
     status = models.BooleanField(default=False)  # active or de-active
-    ack = models.BooleanField(default=True)
+    ack = models.BooleanField(default=False)
 
     def __unicode__(self):
         return u'%s:%s' % (self.user, self.status)

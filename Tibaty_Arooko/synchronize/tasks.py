@@ -1,9 +1,13 @@
 from huey.djhuey import task, periodic_task, crontab
-from .utils import Request
 from pyamf import AMF3
 from pyamf.remoting.client import RemotingService
 from message.views import message_as_email, message_as_sms
 from synchronize.models import Sync
+
+import zmq.green as zmq
+from .utils import schedule, update_schedule, sync_down
+from datetime import datetime
+from dateutil.rrule import *
 
 
 @task(retries=5, retry_delay=60)
@@ -89,8 +93,89 @@ def task_request(obj, domain, method):
     Sync.objects.filter(method=method, model_id=obj.id).update(ack=True)
 
 
+@task()
+def load(phone, amount, request, recipient='', retry=None):
+    if request.lower() == 'normal':
+        data = {'phone': phone, 'amount': amount, 'request': 'c#m'}if retry is None else {'phone': phone, 'amount': amount, 'request': 'c#m', 'retry': retry}
+    elif request.lower() == 'card':
+        data = {'phone': phone, 'amount': amount, 'request': 'p#m'}if retry is None else {'phone': phone, 'amount': amount, 'request': 'p#m', 'retry': retry}
+    elif request.lower() == 'share':
+        if recipient != '':
+            data = {'phone': phone, 'recipient': recipient, 'amount': amount, 'request': 'share'}if retry is None else {'phone': phone, 'recipient': recipient, 'amount': amount, 'request': 'share', 'retry': retry}
+        else:
+            data = {'phone': phone, 'amount': amount, 'request': 'c#m'}if retry is None else {'phone': phone, 'amount': amount, 'request': 'c#m', 'retry': retry}
+
+    context = zmq.Context()
+
+    push_socket = context.socket(zmq.PUSH)
+    push_socket.connect("tcp://localhost:6000")     # think of a random port each belonging to the networks
+    push_socket.send_pyobj(data)
+    push_socket.close()
+    context.term()
+
+
+def getdatetime(cdate, ctime):
+    return datetime.combine(cdate, ctime)
+
+
 @periodic_task(crontab(minute='*/1'))
-def every_five_mins():
-    print 'Every five minutes this will be printed by the consumer'
+def scheduler():
+    querysets = schedule()
+    for item in querysets:
+        #print datetime.date(item.date), datetime.time(item.time)
+        cdatetime = getdatetime(datetime.date(item.date), datetime.time(item.time))
+        if any([item.frequency != " ", item.due_dates != '0']):
+            load.schedule(args=(item.user.username, item.amount, item.type, item.phone_no), eta=cdatetime)
+
+            inter, loop = item.frequency.split('-')    # eg 2-month
+
+            if loop == 'month':
+                freq = MONTHLY
+
+            elif loop == 'week':
+                freq = WEEKLY
+
+            elif loop == 'day':
+                freq = DAILY
+
+            elif loop == 'hour':
+                freq = HOURLY
+
+            else:
+                if item.due_dates == '0':
+                    return
+
+            a = rrule(MONTHLY, interval=1, count=2, bymonthday=(map(int, item.due_dates.split(','))), dtstart=cdatetime) if item.due_dates != '0' else rrule(freq, interval=int(inter), count=2, dtstart=cdatetime)
+            sch_datetime = a.after(cdatetime, inc=False)
+            print sch_datetime
+            if sch_datetime is None:
+                return
+
+            item.date = sch_datetime
+            item.time = sch_datetime
+
+            update_schedule(item)
 
 
+@periodic_task(crontab(minute='*/30'))
+def check_online():
+    sync_down()
+
+
+@task()
+def notification():
+    data = {'phone': '08137474080', 'sms': 'There is a pending transaction or a problem in the transaction. Please see to it'}
+    context = zmq.Context()
+
+    push_socket = context.socket(zmq.PUSH)
+    push_socket.connect("tcp://localhost:6000")     # think of a random port each belonging to the networks
+    push_socket.send_pyobj(data)
+    push_socket.close()
+    context.term()
+    #start a logic that will query for confirmation
+    #or check balance against earlier transaction with the same cid
+    #if it is less by the amount requested, clear the status and report
+
+
+# The interval between each freq iteration. For example, when using YEARLY, an interval of 2 means once every two years,
+# but with HOURLY, it means once every two hours. The default interval is 1.

@@ -28,10 +28,3 @@ class ScheduleSerializer(serializers.ModelSerializer):
 
         return attrs
 
-    def validate(self, attrs):
-        due_dates = attrs['due_dates']
-        frequency = attrs['frequency']
-        if all([frequency == 0, due_dates == 0]):
-            raise serializers.ValidationError('Please fill either or both of frequency and due_dates')
-
-        return attrs

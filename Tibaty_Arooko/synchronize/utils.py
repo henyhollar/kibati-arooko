@@ -1,31 +1,29 @@
-import requests
+from pyamf import AMF3
+from pyamf.remoting.client import RemotingService
+
+domain = 'http://127.0.0.1:8000/'
+online_domain = 'http://mighty-reaches-7475.herokuapp.com/'# replace with ngrok
 
 
-class Request(object):
-    def __init__(self, domain, url, method):
-        self.domain_name = domain
-        self.url = url
-        self.method = method
-        self.uri_map = {
-            'register_user': 'offline_register',
-            'update_user': 'offline_update',
-            'update_wallet': 'update_wallet',
-            'update_schedule': 'offline_schedule',
-            'update_transaction': 'update_transaction',
-            'create_transaction': 'create_transaction'
-        }
+def schedule():
+    gw = RemotingService(domain+'action/', amf_version=AMF3)
+    service = gw.getService('ActionService')
+    http_data = service.schedule()
 
-    def request(self, data):
-        response = eval("""requests."""+self.method+"""(eval("'http://'+self.domain_name+'/'\
-                        +self.uri_map[self.url]+'/'+data['username']+'/'") if data['id']\
-                        else eval("'http://'+self.domain_name+'/'+self.uri_map[self.url]+'/'"))""")
+    return http_data
 
-        return response
 
-    def data_request(self, data):
-        response = eval("""requests."""+self.method+"""(eval("'http://'+self.domain_name+'/'\
-                        +self.uri_map[self.url]+'/'+data['username']+'/'") if data['id']\
-                        else eval("'http://'+self.domain_name+'/'+self.uri_map[self.url]+'/'"), data)""")
+def update_schedule(data):
+    gw = RemotingService(domain+'sync/', amf_version=AMF3)
+    service = gw.getService('SyncService')
+    http_data = service.update_schedule(data)
 
-        return response
+    return http_data
 
+
+def sync_down():
+    gw = RemotingService(online_domain+'sync/', amf_version=AMF3)
+    service = gw.getService('SyncService')
+    http_data = service.sync_down()
+
+    return http_data
