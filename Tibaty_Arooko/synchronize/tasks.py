@@ -2,12 +2,19 @@ from huey.djhuey import task, periodic_task, crontab
 from pyamf import AMF3
 from pyamf.remoting.client import RemotingService
 from message.views import message_as_email, message_as_sms
-from synchronize.models import Sync
+from .models import Sync
+from scheduler.models import getSchedule
 
 import zmq.green as zmq
 from .utils import schedule, update_schedule, sync_down
 from datetime import datetime
 from dateutil.rrule import *
+
+
+mtn = set(['0803', '0813', '0703', '0806', '0816', '0706', '0810', '0814', '0903'])
+eti = set(['0818', '0809', '0819', '0817'])
+zain = set(['0802', '0812', '0701', '0708', '0808'])
+glo = set(['0805', '0815', '0705', '0807', '0811'])
 
 
 @task(retries=5, retry_delay=60)
@@ -105,10 +112,21 @@ def load(phone, amount, request, recipient='', retry=None):
         else:
             data = {'phone': phone, 'amount': amount, 'request': 'c#m'}if retry is None else {'phone': phone, 'amount': amount, 'request': 'c#m', 'retry': retry}
 
+    net = phone[:4]
+
+    if net in mtn:
+        port = '6000'
+    elif net in eti:
+        port = '6010'
+    elif net in glo:
+        port = '6020'
+    elif net in zain:
+        port = '6030'
+
     context = zmq.Context()
 
     push_socket = context.socket(zmq.PUSH)
-    push_socket.connect("tcp://localhost:6000")     # think of a random port each belonging to the networks
+    push_socket.connect("tcp://localhost:"+port)
     push_socket.send_pyobj(data)
     push_socket.close()
     context.term()
@@ -126,8 +144,10 @@ def scheduler():
         cdatetime = getdatetime(datetime.date(item.date), datetime.time(item.time))
         if any([item.frequency != " ", item.due_dates != '0']):
             load.schedule(args=(item.user.username, item.amount, item.type, item.phone_no), eta=cdatetime)
-
-            inter, loop = item.frequency.split('-')    # eg 2-month
+            try:
+                inter, loop = item.frequency.split('-')    # eg 2-month
+            except ValueError:
+                loop = ''
 
             if loop == 'month':
                 freq = MONTHLY
@@ -144,6 +164,7 @@ def scheduler():
             else:
                 if item.due_dates == '0':
                     return
+
 
             a = rrule(MONTHLY, interval=1, count=2, bymonthday=(map(int, item.due_dates.split(','))), dtstart=cdatetime) if item.due_dates != '0' else rrule(freq, interval=int(inter), count=2, dtstart=cdatetime)
             sch_datetime = a.after(cdatetime, inc=False)
