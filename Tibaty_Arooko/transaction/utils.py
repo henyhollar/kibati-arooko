@@ -76,7 +76,13 @@ def choose_values(f):
 
         card = [card for card in eval(cardList) if divmod(int(card_amount), int(card))[0] != 0]
 
-        data.update({'amount': card[-1]})
+        data.update({'amount': card[-1]})  # find the difference in amount and refund
+
+        diff = float(card_amount) - float(data['amount'])
+        if diff:
+            fund_data = data.copy()
+            fund_data.update({'amount': diff})
+            re_fund(fund_data)
 
         data.update({'network': netwk[0]})
         print data
@@ -336,3 +342,47 @@ def calculate(data):
     log.save()
 
     return data
+
+
+def retryTransaction(cid, status):
+    import zmq.green as zmq
+
+    context = zmq.Context()
+
+    trans = Methods.objects.get(cid=cid, status='pending')
+    trans.status = 'OFF' if status is None else 'ON'
+    trans.save()
+
+    if trans and status != 'DISCARD':
+        if trans.recipient:
+            data = {'phone': trans.phone_no, 'recipient': trans.recipient, 'amount': trans.amount, 'request': 'c#m', 'retry': True}
+        else:
+            data = {'phone': trans.phone_no, 'amount': trans.amount, 'request': 'c#m', 'retry': True}
+
+        net = trans.phone_no[:4]
+
+        if net in mtn:
+            port = '6000'
+        elif net in eti:
+            port = '6010'
+        elif net in glo:
+            port = '6020'
+        elif net in zain:
+            port = '6030'
+
+        push_socket = context.socket(zmq.PUSH)
+        push_socket.connect("tcp://localhost:"+port)
+        push_socket.send_pyobj(data)
+        push_socket.close()
+        context.term()
+
+
+def re_fund(data):
+    user = User.objects.get(username=data['phone'])
+    wallet_to_update = Wallet.objects.filter(owner=user.id) if data['platform'] is 'online' else OfflineWallet.objects.filter(owner=user.id)
+    user_wallet = wallet_to_update.get(owner=user.id)
+    new_wallet_amount = float(user_wallet.amount) + float(data['amount'])
+    wallet_to_update.update(amount=new_wallet_amount)
+
+    log = WalletLog(wallet=user_wallet, amount=new_wallet_amount, report='refund') if data['platform'] is 'online' else OfflineWalletLog(wallet=user_wallet, amount=new_wallet_amount, report='refund')
+    log.save()

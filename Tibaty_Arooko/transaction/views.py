@@ -6,7 +6,7 @@ from wallet.models import OfflineWallet, Wallet, WalletLog, OfflineWalletLog
 from transaction.models import Transaction, Cards, Methods
 from message.views import message_as_sms
 from scheduler.models import getSchedule
-from .utils import update_Transaction, create_Transaction, flexi_recharge, calculate, reseller_balance, choose_values, echo_check, pop_card, fix_recharge
+from .utils import update_Transaction, create_Transaction, flexi_recharge, calculate, reseller_balance, choose_values, echo_check, pop_card, fix_recharge, retryTransaction, re_fund
 
 
 User = get_user_model()
@@ -28,7 +28,7 @@ def messageRequest(request, data):
     return data
 
 
-@choose_values
+#@choose_values
 @check_status
 def cardRequest(request, data):
 
@@ -41,12 +41,24 @@ def queryTransaction(request, data):
     return method
 
 
+def issueTransaction(request):
+    method = Methods.objects.filter(Q(status='pending') | Q(status='OFF'))
+
+    return method
+
+
 def rescheduleTransaction(request, cid):
     method = Methods.objects.get(cid=cid, status='pending')
     method.status = 'OFF'
     method.save()
 
     return method
+
+
+def retry(request, cid, status):
+    retryTransaction(cid, status)
+
+    return 'success'
 
 
 def updateTransaction(request, data):
@@ -65,7 +77,7 @@ def logger(request, data):
     method, created = Methods.objects.get_or_create(cid=data['cid'])
     method.phone_no = data['phone']
     method.amount = data['amount']
-    method.status = 'pending' if data['cid'] != any(['card#06', 'card#011', 'card#016', 'card#21']) else 'ON'
+    method.status = 'pending' if not any(['card#06' == data['cid'], 'card#16' == data['cid'], 'card#26' == data['cid'], 'card#36' == data['cid']]) else 'ON'
 
     transaction.recipient = method.recipient = data['recipient'] if 'recipient' in data else ''
 
@@ -142,14 +154,7 @@ def card_to_db(request, data):
 
 
 def refund(request, data):
-    user = User.objects.get(username=data['phone'])
-    wallet_to_update = Wallet.objects.filter(owner=user.id) if data['platform'] is 'online' else OfflineWallet.objects.filter(owner=user.id)
-    user_wallet = wallet_to_update.get(owner=user.id)
-    new_wallet_amount = float(user_wallet.amount) + float(data['amount'])
-    wallet_to_update.update(amount=new_wallet_amount)
-
-    log = WalletLog(wallet=user_wallet, amount=new_wallet_amount, report='refund') if data['platform'] is 'online' else OfflineWalletLog(wallet=user_wallet, amount=new_wallet_amount, report='refund')
-    log.save()
+    re_fund(data)
 
     return 'success'
 
@@ -165,7 +170,9 @@ agw = DjangoGateway({"ActionService.beepRequest": beepRequest,
                     "ActionService.refund": refund,
                     "ActionService.cardRequest": cardRequest,
                     "ActionService.queryTransaction": queryTransaction,
+                    "ActionService.issueTransaction": issueTransaction,
                     "ActionService.rescheduleTransaction": rescheduleTransaction,
+                    "ActionService.retry": retry,
                     "ActionService.updateTransaction": updateTransaction,
                     "ActionService.logger": logger,
                     "ActionService.log_bal": log_bal,

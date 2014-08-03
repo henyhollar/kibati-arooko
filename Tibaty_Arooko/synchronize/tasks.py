@@ -30,7 +30,7 @@ def task_request(obj, domain, method):
             # set the admin phone nos as global variable in the settings and make message_as_sms() loop over the nos.
             data = {'subject': 'Offline Registration Error', 'message': e, 'phone': '08137474080'}
             message_as_email(data)
-        raise LookupError()
+            return
 
     elif method == 'update_user':
         try:
@@ -43,7 +43,7 @@ def task_request(obj, domain, method):
             # set the admin phone nos as global variable in the settings and make message_as_sms() loop over the nos.
             data = {'subject': 'Offline Registration Error', 'message': e, 'phone': '08137474080'}
             message_as_email(data)
-        raise LookupError()
+            return
 
     elif method == 'update_wallet':
         try:
@@ -56,7 +56,7 @@ def task_request(obj, domain, method):
             # set the admin phone nos as global variable in the settings and make message_as_sms() loop over the nos.
             data = {'subject': 'Offline Registration Error', 'message': e, 'phone': '08137474080'}
             message_as_email(data)
-        raise LookupError()
+            return
 
     elif method == 'update_schedule':
         try:
@@ -69,7 +69,7 @@ def task_request(obj, domain, method):
             # set the admin phone nos as global variable in the settings and make message_as_sms() loop over the nos.
             data = {'subject': 'Offline Registration Error', 'message': e, 'phone': '08137474080'}
             message_as_email(data)
-        raise LookupError()
+            return
 
     elif method == 'update_transaction':
         try:
@@ -82,7 +82,7 @@ def task_request(obj, domain, method):
             # set the admin phone nos as global variable in the settings and make message_as_sms() loop over the nos.
             data = {'subject': 'Offline Registration Error', 'message': e, 'phone': '08137474080'}
             message_as_email(data)
-        raise LookupError()
+            return
 
     elif method == 'create_transaction':
         try:
@@ -95,7 +95,7 @@ def task_request(obj, domain, method):
             # set the admin phone nos as global variable in the settings and make message_as_sms() loop over the nos.
             data = {'subject': 'Offline Registration Error', 'message': e, 'phone': '08137474080'}
             message_as_email(data)
-        raise LookupError()
+            return
 
     Sync.objects.filter(method=method, model_id=obj.id).update(ack=True)
 

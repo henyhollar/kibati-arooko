@@ -118,8 +118,9 @@ def notify(request):
         count += 1
 
 def revoker(request):
-    global notice
+    global notice, count
     notice.revoke()
+    count = 0
 
 
 # Finally to expose django views use DjangoGateway
