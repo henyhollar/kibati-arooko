@@ -68,7 +68,7 @@ def updateTransaction(request, data):
     Methods.objects.filter(phone_no=data['phone_no'], status='pending', cid=data['cid']).update(status='ON')
 
     #update_Transaction(data)  # this goes to create transaction online
-    return 'success'
+    return 'successful'
 
 
 def logger(request, data):
