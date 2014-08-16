@@ -350,7 +350,7 @@ def retryTransaction(cid, status):
     context = zmq.Context()
 
     trans = Methods.objects.get(cid=cid, status='pending')
-    trans.status = 'OFF' if status is None else 'ON'
+    trans.status = 'retry' if status is None else 'ON'
     trans.save()
 
     if trans and status != 'DISCARD':

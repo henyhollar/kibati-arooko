@@ -41,10 +41,10 @@ def queryTransaction(request, data):
     return method
 
 
-def issueTransaction(request):
-    method = Methods.objects.filter(Q(status='pending') | Q(status='OFF'))
+def issueTransaction(request, data=None):
+    obj = Methods.objects.filter(~Q(status='ON')) if data is None else Transaction.objects.filter(~Q(balance=None), phone_no=data['phone'], cid=data['cid']).latest('id')
 
-    return method
+    return obj
 
 
 def rescheduleTransaction(request, cid):
@@ -62,10 +62,10 @@ def retry(request, cid, status):
 
 
 def updateTransaction(request, data):
+    Methods.objects.filter(Q(phone_no=data['phone_no']) | Q(recipient=data['phone_no']), status='pending', cid=data['cid']).update(status='ON')
     trans = Transaction.objects.filter(Q(phone_no=data['phone_no']) | Q(recipient=data['phone_no']), status='pending', cid=data['cid'])
     trans_id = trans.latest('id').id
     trans.filter(id=trans_id).update(balance=data['balance'], status='ON')
-    Methods.objects.filter(phone_no=data['phone_no'], status='pending', cid=data['cid']).update(status='ON')
 
     #update_Transaction(data)  # this goes to create transaction online
     return 'successful'

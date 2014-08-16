@@ -136,7 +136,7 @@ def getdatetime(cdate, ctime):
     return datetime.combine(cdate, ctime)
 
 
-@periodic_task(crontab(minute='*/1'))
+@periodic_task(crontab(minute='*/10'))
 def scheduler():
     querysets = schedule()
     for item in querysets:

@@ -23,7 +23,6 @@ class RegisterSerializer(serializers.ModelSerializer):
         model = User
         fields = ('username', 'id')
 
-
     def validate_username(self, attrs, source):
         """
         this will validate the phone no.
@@ -37,7 +36,6 @@ class RegisterSerializer(serializers.ModelSerializer):
         except User.DoesNotExist:
             return attrs
         raise serializers.ValidationError("Phone number already exists. If are trying to glue, consider the glue option")
-
 
     def restore_object(self, attrs, instance=None):
         """
@@ -76,7 +74,6 @@ class RegisterSlaveSerializer(serializers.ModelSerializer):
 
         return attrs
 
-
     def validate(self, attrs):
         """
         this will validate the phone no.
@@ -91,8 +88,6 @@ class RegisterSlaveSerializer(serializers.ModelSerializer):
             attrs.update({'slave': phone_no})
             return attrs
         raise serializers.ValidationError("Phone number already exists. If you are trying to glue, consider the glue option")
-
-
 
     def restore_object(self, attrs, instance=None):
         """
@@ -129,8 +124,6 @@ class UpdateSerializer(serializers.ModelSerializer):
         raise serializers.ValidationError('default_amt cannot be less that =N=100')
 
 
-
-
 class UserInfoSerializer(serializers.ModelSerializer):
     """
     Return user characteristics
@@ -142,7 +135,6 @@ class UserInfoSerializer(serializers.ModelSerializer):
         fields = ("plug", "glue", "hierarchy", "permission", "default_amt", "location", "occupation",  "interest", "birth_day", "wallet","last_login","is_superuser","email","is_staff","is_active","date_joined","first_name", "email")
 
 
-
 class ChangePasswordSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
@@ -152,6 +144,7 @@ class ChangePasswordSerializer(serializers.ModelSerializer):
         if instance.email is not " " or instance.email is not None:
             super(ChangePasswordSerializer, self).restore_object(attrs, instance)
         raise serializers.ValidationError('You must enter a valid email address where we will send your new password.')
+
 
 class GlueUserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -168,7 +161,6 @@ class GlueUserSerializer(serializers.ModelSerializer):
         else:
             user_behaviour = UserBehaviour(username=instance.username, request=self.context['request'])
             instance = user_behaviour.unglue()
-
 
         return instance
 

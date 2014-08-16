@@ -114,7 +114,7 @@ def sync_down(request):
 def notify(request):
     global notice, count
     if count != 1:
-        notice = notification.schedule(delay=(60 * 1))  # there should be one at a time
+        notice = notification.schedule(delay=(60 * 5))  # there should be one at a time
         count += 1
 
 def revoker(request):
