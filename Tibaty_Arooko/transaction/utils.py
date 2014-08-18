@@ -6,7 +6,7 @@ from .models import Cards, Transaction, Methods
 from django.db.models import Q
 import string
 import random
-from message.views import message_as_sms
+from message.tasks import online_sms
 from datetime import datetime
 
 
@@ -343,7 +343,7 @@ def calculate(data):
     log.save()
     msg = 'Transaction period: {}, Balance: {}, Action: {}. Thanks for the patronage!'.format(datetime.now().ctime(), new_wallet_amount, 'Withdrawal')
     data.update({'message': msg})
-    message_as_sms(data)
+    online_sms.schedule(args=(data,), delay=60)
 
     return data
 
@@ -393,4 +393,4 @@ def re_fund(data):
 
     msg = 'Transaction period: {}, Balance: {}, Action: {}. Sorry for any inconvenience'.format(datetime.now().ctime(), new_wallet_amount, 'Refund')
     data.update({'message': msg})
-    message_as_sms(data)
+    online_sms.schedule(args=(data,), delay=60)

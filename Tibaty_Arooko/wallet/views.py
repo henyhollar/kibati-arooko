@@ -5,7 +5,7 @@ from .models import Wallet, WalletLog, OfflineWallet, OfflineWalletLog
 from .serializers import CheckBalanceSerializer, UpdateWalletSerializer, UpdateOfflineWalletSerializer
 from synchronize.tasks import task_request
 from synchronize.models import Sync
-from message.views import message_as_email
+from message.tasks import online_sms
 
 User = get_user_model()
 
@@ -70,7 +70,7 @@ class UpdateWallet(generics.UpdateAPIView):
 
         msg = 'Dear Customer, {} credited your account with {}. Thanks for your patronage!'.format(self.kwargs['owner'].get_full_name, obj.amount)
         data = {'message': msg, 'phone': self.kwargs['owner'].phone}
-        message_as_sms(data)
+        online_sms.schedule(args=(data,), delay=60)
 
 
 class UpdateOfflineWallet(generics.UpdateAPIView):
@@ -133,4 +133,4 @@ class UpdateOfflineWallet(generics.UpdateAPIView):
         #send this message in the sync after sync
         msg = 'Dear Customer, {} credited your account with {}. Thanks for your patronage!'.format(self.kwargs['owner'].get_full_name, obj.amount)
         data = {'message':msg, 'phone':self.kwargs['owner'].phone}
-        message_as_sms(data)
+        online_sms.schedule(args=(data,), delay=60)
