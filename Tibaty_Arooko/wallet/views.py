@@ -5,6 +5,7 @@ from .models import Wallet, WalletLog, OfflineWallet, OfflineWalletLog
 from .serializers import CheckBalanceSerializer, UpdateWalletSerializer, UpdateOfflineWalletSerializer
 from synchronize.tasks import task_request
 from synchronize.models import Sync
+from message.views import message_as_email
 
 User = get_user_model()
 
@@ -67,6 +68,10 @@ class UpdateWallet(generics.UpdateAPIView):
         else:
             WalletLog.objects.create(wallet=obj, amount=obj.amount, report='self')
 
+        msg = 'Dear Customer, {} credited your account with {}. Thanks for your patronage!'.format(self.kwargs['owner'].get_full_name, obj.amount)
+        data = {'message': msg, 'phone': self.kwargs['owner'].phone}
+        message_as_sms(data)
+
 
 class UpdateOfflineWallet(generics.UpdateAPIView):
     def __init__(self):
@@ -124,3 +129,8 @@ class UpdateOfflineWallet(generics.UpdateAPIView):
         Sync.objects.create(method='update_wallet', model_id=obj.id)
 
         task_request(obj, 'www.arooko.ngrok.com', 'update_wallet')
+
+        #send this message in the sync after sync
+        msg = 'Dear Customer, {} credited your account with {}. Thanks for your patronage!'.format(self.kwargs['owner'].get_full_name, obj.amount)
+        data = {'message':msg, 'phone':self.kwargs['owner'].phone}
+        message_as_sms(data)

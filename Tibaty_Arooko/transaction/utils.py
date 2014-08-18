@@ -7,6 +7,7 @@ from django.db.models import Q
 import string
 import random
 from message.views import message_as_sms
+from datetime import datetime
 
 
 User = get_user_model()
@@ -340,6 +341,9 @@ def calculate(data):
 
     log = WalletLog(wallet=user_wallet, amount=new_wallet_amount, report='withdrawal') if data['platform'] is 'online' else OfflineWalletLog(wallet=user_wallet, amount=new_wallet_amount, report='withdrawal')
     log.save()
+    msg = 'Transaction period: {}, Balance: {}, Action: {}. Thanks for the patronage!'.format(datetime.now().ctime(), new_wallet_amount, 'Withdrawal')
+    data.update({'message': msg})
+    message_as_sms(data)
 
     return data
 
@@ -349,7 +353,7 @@ def retryTransaction(cid, status):
 
     context = zmq.Context()
 
-    trans = Methods.objects.get(cid=cid, status='pending')
+    trans = Methods.objects.get(Q(status='pending') | Q(status='OFF'), cid=cid)
     trans.status = 'retry' if status is None else 'ON'
     trans.save()
 
@@ -386,3 +390,7 @@ def re_fund(data):
 
     log = WalletLog(wallet=user_wallet, amount=new_wallet_amount, report='refund') if data['platform'] is 'online' else OfflineWalletLog(wallet=user_wallet, amount=new_wallet_amount, report='refund')
     log.save()
+
+    msg = 'Transaction period: {}, Balance: {}, Action: {}. Sorry for any inconvenience'.format(datetime.now().ctime(), new_wallet_amount, 'Refund')
+    data.update({'message': msg})
+    message_as_sms(data)
