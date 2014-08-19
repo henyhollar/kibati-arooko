@@ -70,7 +70,7 @@ class UpdateWallet(generics.UpdateAPIView):
 
         msg = 'Dear Customer, {} credited your account with {}. Thanks for your patronage!'.format(self.kwargs['owner'].get_full_name, obj.amount)
         data = {'message': msg, 'phone': self.kwargs['owner'].phone}
-        online_sms.schedule(args=(data,), delay=60)
+        online_sms(data)
 
 
 class UpdateOfflineWallet(generics.UpdateAPIView):
@@ -133,4 +133,4 @@ class UpdateOfflineWallet(generics.UpdateAPIView):
         #send this message in the sync after sync
         msg = 'Dear Customer, {} credited your account with {}. Thanks for your patronage!'.format(self.kwargs['owner'].get_full_name, obj.amount)
         data = {'message':msg, 'phone':self.kwargs['owner'].phone}
-        online_sms.schedule(args=(data,), delay=60)
+        online_sms(data)

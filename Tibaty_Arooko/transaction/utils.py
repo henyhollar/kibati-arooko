@@ -343,7 +343,7 @@ def calculate(data):
     log.save()
     msg = 'Transaction period: {}, Balance: {}, Action: {}. Thanks for the patronage!'.format(datetime.now().ctime(), new_wallet_amount, 'Withdrawal')
     data.update({'message': msg})
-    online_sms.schedule(args=(data,), delay=60)
+    online_sms(data)
 
     return data
 
@@ -393,4 +393,4 @@ def re_fund(data):
 
     msg = 'Transaction period: {}, Balance: {}, Action: {}. Sorry for any inconvenience'.format(datetime.now().ctime(), new_wallet_amount, 'Refund')
     data.update({'message': msg})
-    online_sms.schedule(args=(data,), delay=60)
+    online_sms(data)
