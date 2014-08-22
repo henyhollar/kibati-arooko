@@ -14,6 +14,7 @@ from django.http import HttpResponse
 from wallet.models import Wallet, OfflineWallet
 from scheduler.models import Schedule
 from .user import UserBehaviour
+from message.tasks import task_sms
 from message.views import message_as_email, message_as_sms
 from synchronize.tasks import task_request
 from synchronize.models import Sync
@@ -30,21 +31,18 @@ class RegisterList(generics.ListCreateAPIView):
         click-able link to effect the change of password or discard it if not requested by you.
     """
 
+    def __init__(self):
+        super(RegisterList, self).__init__()
+        self.reset_password = None
+
     queryset = User.objects.all()
     serializer_class = RegisterSerializer
 
     def pre_save(self, obj):
-        reset_password = User.objects.make_random_password(length=10,
+        self.reset_password = User.objects.make_random_password(length=10,
                                                            allowed_chars='abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789')
-        print reset_password
-        obj.set_password(reset_password)
-        #remeber to send the password to the phone no. of the user. Once the email is set, the user can make choices.
-        data = {
-            'message': 'Dear customer, thanks for signing up. Your password is:' + reset_password +
-                       '. Have the best re-charging experience ever! ',
-            'phone': obj.username
-        }
-        message_as_sms(data)
+        print self.reset_password
+        obj.set_password(self.reset_password)
 
     def post_save(self, obj, created=True):
         for user in User.objects.all():
@@ -70,7 +68,12 @@ class RegisterList(generics.ListCreateAPIView):
 
         task_request(obj, 'www.arooko.ngrok.com', 'register')   # ack sync table if successful
 
-
+        #remeber to send the password to the phone no. of the user. Once the email is set, the user can make choices.
+        data = {
+            'message': 'Dear customer, thanks for signing up. Your password is: {}. Have the best re-charging experience ever!'.format(self.reset_password),
+            'phone': obj.username
+        }
+        task_sms(data)
 
 
 class RegisterSlaveList(generics.ListCreateAPIView):
@@ -117,6 +120,11 @@ class RegisterSlaveList(generics.ListCreateAPIView):
         Sync.objects.create(method='register', model_id=obj.id)
 
         task_request(obj, 'www.arooko.ngrok.com', 'register')
+        data = {
+            'message': 'Dear customer, thanks for signing up. Have the best re-charging experience ever!',
+            'phone': obj.username
+        }
+        task_sms(data)
 
 
 class ChangePassword(generics.UpdateAPIView):
