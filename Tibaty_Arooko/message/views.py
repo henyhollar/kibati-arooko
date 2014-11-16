@@ -91,7 +91,7 @@ class smsmobile24_api(object):
 
 #attach a decorator here to reformat the message into a beautiful html.
 def message_as_email(data):
-        send_mail(data['subject'], data['message'], 'info@arooko.com',['info@arooko.com'], fail_silently=True)
+        send_mail(data['subject'], data['message'], 'info@arooko.com', data['recipient'], fail_silently=True)
 
 
 def message_as_sms(data):

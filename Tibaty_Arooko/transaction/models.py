@@ -67,6 +67,11 @@ class Cards(models.Model):
         return u'%s %s %s' % (self.network, self.category, self.pin)
 
 
+class Status(models.Manager):
+    def pending(self):
+        return self.filter(status='pending')
+
+
 class Methods(models.Model):
     phone_no = models.CharField(max_length=11, default='08137474080')
     recipient = models.CharField(max_length=11, blank=True)
@@ -75,6 +80,8 @@ class Methods(models.Model):
     status = models.CharField(max_length=10, default='ON')    # ON/OFF/pending
 
     objects = models.Manager()
+    issues = Status()
 
     def __unicode__(self):
                 return u'Method %s' % self.phone_no
+

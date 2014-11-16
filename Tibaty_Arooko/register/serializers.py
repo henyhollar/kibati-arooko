@@ -105,9 +105,10 @@ class UpdateSerializer(serializers.ModelSerializer):
     """
     wallet = CheckBalanceSerializer(read_only=True)
 
+
     class Meta:
         model = User
-        fields = ("first_name", "email", "location", "occupation",  "interest", "birth_day", "default_amt", "wallet")
+        fields = ()
 
     def validate_email(self, attrs, source):
         email = attrs[source]
@@ -124,15 +125,6 @@ class UpdateSerializer(serializers.ModelSerializer):
         raise serializers.ValidationError('default_amt cannot be less that =N=100')
 
 
-class UserInfoSerializer(serializers.ModelSerializer):
-    """
-    Return user characteristics
-    """
-    wallet = CheckBalanceSerializer(read_only=True)
-
-    class Meta:
-        model = User
-        fields = ("plug", "glue", "hierarchy", "permission", "default_amt", "location", "occupation",  "interest", "birth_day", "wallet","last_login","is_superuser","email","is_staff","is_active","date_joined","first_name", "email")
 
 
 class ChangePasswordSerializer(serializers.ModelSerializer):
@@ -163,6 +155,7 @@ class GlueUserSerializer(serializers.ModelSerializer):
             instance = user_behaviour.unglue()
 
         return instance
+
 
 class ChangeDefaultSerializer(serializers.ModelSerializer):
     class Meta:

@@ -7,11 +7,19 @@ from Tibaty_Arooko.settings import base
 
 
 class Wallet(models.Model):
+        # the first place money paid will go into after which sync of wallet is carried out
+        # then,the money will be moved to the amount field.
+        # the front-end should display info like:
+        # "You have paid a sum of N1000, we will update your overall balance soon. Note that you can continue using your
+        # account normally, in as much as it does not exceed the amount you just paid.
+        # We are sorry for the inconvenience. Thanks for your patronage!"
+        # Calculator should be able to use tempo_amount if it is not zero and can cater for the amount requested for.
         owner = models.OneToOneField(base.AUTH_USER_MODEL, related_name='wallet', unique=True)
         amount = models.FloatField(default=0.0)
+        tempo_amount = models.FloatField(default=0.0)
         datetime = models.DateTimeField(default=utc.localize(datetime.datetime.utcnow()))
         walletID = models.CharField(max_length=10, default="00000")
-        ack = models.BooleanField(default=True)
+        ack = models.BooleanField(default=False)
 
         def __unicode__(self):
                 return u'%s' % self.owner
@@ -41,7 +49,7 @@ class OfflineWallet(models.Model):
     owner = models.OneToOneField(base.AUTH_USER_MODEL, related_name='offlinewallet', unique=True)
     amount = models.FloatField(default=0.0)
     datetime = models.DateTimeField(default=utc.localize(datetime.datetime.utcnow()))
-    ack = models.BooleanField(default=True)
+    ack = models.BooleanField(default=False)
 
     def __unicode__(self):
             return u'%s' % self.owner

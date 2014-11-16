@@ -2,11 +2,11 @@ from django.contrib.auth import get_user_model
 from django.shortcuts import get_list_or_404
 from rest_framework import generics
 from pyamf.remoting.gateway.django import DjangoGateway
-from wallet.models import OfflineWallet
+from wallet.models import OfflineWallet, Wallet
 from scheduler.models import Schedule
 from transaction.models import Transaction
 from .models import Sync
-from .tasks import task_request, notification
+from .tasks import task_request, notification, get_balance
 
 
 User = get_user_model()
@@ -40,6 +40,14 @@ def update_user(request, obj):
 
 
 def update_wallet(request, obj):
+    Wallet.objects.filter(owner=obj.id).update(
+        amount=obj.amount,
+        ack=True
+    )
+    return 'success'
+
+
+def update_offline_wallet(request, obj):
     OfflineWallet.objects.filter(owner=obj.id).update(
         amount=obj.amount,
         ack=True
@@ -98,6 +106,8 @@ def sync_down(request):
         if syn.method == 'register' or syn.method == 'update_user':
             obj = User.objects.get(id=syn.id)
         elif syn.method == 'update_wallet':
+            obj = Wallet.objects.get(id=syn.id)
+        elif syn.method == 'update_offline_wallet':
             obj = OfflineWallet.objects.get(id=syn.id)
         elif syn.method == 'update_schedule':
             obj = Schedule.objects.get(id=syn.id)
@@ -116,6 +126,7 @@ def notify(request):
     if count != 1:
         notice = notification.schedule(delay=(60 * 5))  # there should be one at a time
         count += 1
+        get_balance()
 
 def revoker(request):
     global notice, count
@@ -127,6 +138,7 @@ def revoker(request):
 sync = DjangoGateway({"SyncService.register": register,
                     "SyncService.update_user": update_user,
                     "SyncService.update_wallet": update_wallet,
+                    "SyncService.update_offline_wallet": update_offline_wallet,
                     "SyncService.update_schedule": update_schedule,
                     "SyncService.update_transaction": update_transaction,
                     "SyncService.create_transaction": create_transaction,

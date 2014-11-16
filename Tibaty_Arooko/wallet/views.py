@@ -35,7 +35,7 @@ class UpdateWallet(generics.UpdateAPIView):
                 raise generics.PermissionDenied
 
         try:
-            owner = User.objects.get(Q(Q(plug__isnull=True) | Q(plug=self.uplink_user)) | Q(Q(glue__isnull=True) | Q(glue=self.master_user)), username=self.kwargs['owner'])
+            owner = User.objects.get(username=self.kwargs['owner']) if all([self.uplink_user is None, self.master_user is None]) else User.objects.get(Q(Q(plug=self.uplink_user) | Q(glue=self.master_user)), username=self.kwargs['owner'])
         except:
             raise generics.PermissionDenied
 
@@ -93,7 +93,7 @@ class UpdateOfflineWallet(generics.UpdateAPIView):
                 raise generics.PermissionDenied
 
         try:
-            owner = User.objects.get(Q(Q(plug__isnull=True) | Q(plug=self.uplink_user)) | Q(Q(glue__isnull=True) | Q(glue=self.master_user)), username=self.kwargs['owner'])
+            owner = User.objects.get(username=self.kwargs['owner']) if all([self.uplink_user is None, self.master_user is None]) else User.objects.get(Q(Q(plug=self.uplink_user) | Q(glue=self.master_user)), username=self.kwargs['owner'])
         except:
             raise generics.PermissionDenied
 
@@ -132,5 +132,5 @@ class UpdateOfflineWallet(generics.UpdateAPIView):
 
         #send this message in the sync after sync
         msg = 'Dear Customer, {} credited your account with {}. Thanks for your patronage!'.format(self.kwargs['owner'].get_full_name, obj.amount)
-        data = {'message':msg, 'phone':self.kwargs['owner'].phone}
+        data = {'message':msg, 'phone':self.kwargs['owner'].username}
         task_sms(data)

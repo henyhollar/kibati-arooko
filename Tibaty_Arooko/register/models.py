@@ -1,6 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
-
+from jsonfield import JSONField
 
 
 class ArookoUser(AbstractUser):
@@ -24,8 +24,9 @@ class ArookoUser(AbstractUser):
 
     #State
     ack = models.BooleanField(default=False)  # this will be changed to True after offline registration
-    status = models.CharField(max_length=20, default='clear')  # status will show pending if the user has not accepted
-                                                                # a glue or a plug
+    intent = JSONField()  # intent will contain json of actions and username as value.
+                            # The frontend will handle its writing and deletion. It will help to make decisions on when
+                            # to call the required api after the user notification and agreement.
 
     @property
     def set_ack(self):

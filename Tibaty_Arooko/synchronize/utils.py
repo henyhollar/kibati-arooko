@@ -1,14 +1,23 @@
 from pyamf import AMF3
 from pyamf.remoting.client import RemotingService
 
-domain = 'http://127.0.0.1:8000/'
-online_domain = 'http://mighty-reaches-7475.herokuapp.com/'# replace with ngrok
+domain = 'http://127.0.0.1:8000/'   # talk down with ngrok
+online_domain = 'http://mighty-reaches-7475.herokuapp.com/'
+
 
 
 def schedule():
     gw = RemotingService(domain+'action/', amf_version=AMF3)
     service = gw.getService('ActionService')
     http_data = service.schedule()
+
+    return http_data
+
+
+def ping_offline():
+    gw = RemotingService(online_domain+'action/', amf_version=AMF3)
+    service = gw.getService('ActionService')
+    http_data = service.ping_offline()
 
     return http_data
 

@@ -9,15 +9,18 @@ from .permissions import IsMaster
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from serializers import RegisterSerializer, RegisterSlaveSerializer, ChangePasswordSerializer, UpdateSerializer, \
-    UserInfoSerializer, GlueUserSerializer, ChangeDefaultSerializer, SessionSerializer
+    GlueUserSerializer, ChangeDefaultSerializer, SessionSerializer
 from django.http import HttpResponse
 from wallet.models import Wallet, OfflineWallet
 from scheduler.models import Schedule
-from .user import UserBehaviour
+from .user import UserBehaviour, UserGroups
 from message.tasks import task_sms
 from message.views import message_as_email, message_as_sms
 from synchronize.tasks import task_request
 from synchronize.models import Sync
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+
 
 
 User = get_user_model()
@@ -154,30 +157,40 @@ class ChangePassword(generics.UpdateAPIView):
             message_as_email(data)
 
 
-class UserDetail(generics.RetrieveUpdateAPIView):
-    def get_queryset(self):
-        if self.kwargs.get('username') == self.request.user.username:
-            return User.objects.all()
-        raise generics.PermissionDenied
+class UserDetail(APIView):
 
-    queryset = User.objects.all()
-    lookup_field = 'username'
-    serializer_class = UpdateSerializer
     permission_classes = (permissions.IsAuthenticated,)
 
-    def post_save(self, obj, created=False):
-        task_request(obj, 'www.arooko.ngrok.com', 'update_user')
+    def get_wallet(self, request):
+        wallet = Wallet.objects.get(owner=request.user)
 
+        return {'wallet': wallet.amount}
 
-class UserInformation(generics.RetrieveAPIView):
-    def get_queryset(self):
-        if self.kwargs.get('username') == self.request.user.username:
-            return User.objects.all()
-        raise generics.PermissionDenied
+    def get_object(self, username):
+        try:
+            return User.objects.get(username=username)
+        except User.DoesNotExist:
+            raise generics.PermissionDenied
 
-    lookup_field = 'username'
-    serializer_class = UserInfoSerializer
-    permission_classes = (permissions.IsAuthenticated,)
+    def get(self, request, username, format=None):
+        query = self.get_object(username)
+        user_group = UserGroups(query)
+        group_property = user_group.populate_family_group()
+        group_property.update(self.get_wallet(request))
+
+        return Response(group_property)
+
+    def put(self, request, username, format=None):
+        query = self.get_object(username)
+        serializer = UpdateSerializer(query, data=request.DATA)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    #def post_save(self, obj, created=False):
+    #    task_request(obj, 'www.arooko.ngrok.com', 'update_user')
+
 
 
 def ResetPassword(request, username):
@@ -190,22 +203,23 @@ def ResetPassword(request, username):
         data = {
             'subject': 'Password Reset',
             'message': 'Dear customer, your new password is:' + reset_password + '. Have the best re-charging experience ever! ',
-            'phone': request.user.email
+            'recipient': request.user.email,
+            'phone': request.user.username
         }
         if request.user.email is not None or request.user.email is not ' ':
             user.set_password(reset_password)
             user.save()
             message_as_email(data)
-            return Response({'success': True})
+
         else:
-            raise generics.PermissionDenied
+            message_as_sms(data)
+
+        return Response({'success': True})
 
 
-#only the master user can add other users as his slave. There at the front-end, only the user who's status is master will have a menu called add users.
+#only the master user can add other users as his slaves. There at the front-end, only the user who's status is master will have a menu called add users.
 #and in this case, the user has to be already registered.
-# add status to the user model to signify pending issues such as glue if the user to be glued is an existing user. eg pending:glue
-# do this in the pre-save of the following class. Then any function to use user must check the pending issue b4 going on.
-# function are: offline-update, master and uplink wallet-update
+# functions are: offline-update, master and uplink wallet-update
 class GlueUser(generics.UpdateAPIView):
     def __init__(self):
         super(GlueUser, self).__init__()
@@ -235,7 +249,7 @@ class GlueUser(generics.UpdateAPIView):
 
     serializer_class = GlueUserSerializer
     lookup_field = 'username'
-    permission_classes = (IsMaster,)
+    #permission_classes = (IsMaster,)
 
     def get_serializer_context(self):
         context = super(GlueUser, self).get_serializer_context()
@@ -248,7 +262,6 @@ class GlueUser(generics.UpdateAPIView):
 
     def post_save(self, obj, created=False):
         Sync.objects.create(method='update_user', model_id=obj.id)
-
         task_request(obj, 'www.arooko.ngrok.com', 'update_user')
 
 
@@ -303,7 +316,6 @@ class SessionView(APIView):
         return self._error_response('invalid')
 
         #return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
 
     def delete(self, request, *args, **kwargs):
         # Logout

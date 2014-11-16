@@ -1,6 +1,7 @@
 from django.contrib.auth import get_user_model
 from rest_framework import generics
 from message.views import message_as_email, message_as_sms
+from django.forms.models import model_to_dict
 
 User = get_user_model()
 
@@ -171,36 +172,25 @@ class UserBehaviour(object):
         return self._obj
 
 
-
-
-
 class UserGroups(object):
-    def __init__(self, user_no, model):
-        self.user_no = user_no
-        self.model = model
-        self.immediate_family_group = []
-        self.extended_family_group = []
-        self.glue_to = None
-        self.plug_to = None
+    def __init__(self, obj):
+        self._obj = obj
+        self._obj_dict = model_to_dict(obj)
+        self.user_no = obj.username
+
     def populate_family_group(self):
-        user = self.model.objects.get(username=self.user_no)
-        self.glue_to = user.glue
-        self.plug_to = user.plug
-        if self.glue_to:
-            master_user = self.model.objects.get(id=self.glue_to)
-            self.immediate_family_group.append(master_user)
-            slave_user = self.model.objects.filter(glue=self.glue_to)
-            for glued_user in slave_user:
-                self.immediate_family_group.append(glued_user)
+        #user = User.objects.get(username=self.user_no)
 
-        if self.plug_to:
-            uplink_user = self.model.objects.get(id=self.plug_to)
-            self.extended_family_group.append(uplink_user)
-            downlink_user = self.model.objects.filter(plug=self.plug_to)
-            for plugged_user in downlink_user:
-                self.extended_family_group.append(plugged_user)
+        if self._obj.hierarchy == 'master':
+            slave_user = User.objects.filter(glue=self._obj).values('username')
+            self._obj_dict.update({'glued_family': [user['username'] for user in slave_user]})
 
-        return self.immediate_family_group, self.extended_family_group
+        if self._obj.permission == 'uplink':
+            downlink_user = User.objects.filter(plug=self._obj).values('username')
+            self._obj_dict.update({'plugged_family': [user['username'] for user in downlink_user]})
+
+        #print self.group_list
+        return self._obj_dict
 
 
     @property
@@ -210,15 +200,4 @@ class UserGroups(object):
         extended_family_length = len(extended)
 
         return immediate_family_length, extended_family_length
-
-
-
-
-
-
-
-
-
-
-
 

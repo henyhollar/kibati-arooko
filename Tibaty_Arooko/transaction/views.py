@@ -6,7 +6,7 @@ from wallet.models import OfflineWallet, Wallet, WalletLog, OfflineWalletLog
 from transaction.models import Transaction, Cards, Methods
 from message.views import message_as_sms
 from scheduler.models import getSchedule
-from .utils import update_Transaction, create_Transaction, flexi_recharge, calculate, reseller_balance, choose_values, echo_check, pop_card, fix_recharge, retryTransaction, re_fund
+from .utils import update_Transaction, create_Transaction, flexi_recharge, calculate, reseller_balance, choose_values, echo_check, pop_card, fix_recharge, retryTransaction, re_fund, OnlineTransfer
 
 
 User = get_user_model()
@@ -36,13 +36,13 @@ def cardRequest(request, data):
 
 
 def queryTransaction(request, data):
-    method = Methods.objects.filter(Q(status='pending') | Q(status='OFF'), cid=data['cid']).exists()
+    method = Methods.objects.filter(~Q(status='ON'), cid=data['cid']).exists()
     #if data['cid'] == 'www#05': do echocheck
     return method
 
 
 def issueTransaction(request, data=None):
-    obj = Methods.objects.filter(~Q(status='ON')) if data is None else Transaction.objects.filter(~Q(balance=None), phone_no=data['phone'], cid=data['cid']).latest('id')
+    obj = Methods.objects.filter(~Q(status='ON')) if data is None else Transaction.objects.filter(~Q(balance=None), cid=data['cid']).latest('id')
 
     return obj
 
@@ -162,6 +162,37 @@ def refund(request, data):
 def calculator(request, data):
 
     return calculate(data)
+
+
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from huey.djhuey import task
+
+
+class Recharge(APIView):
+    """
+    Retrieve, update or delete a snippet instance.
+    """
+    def get(self, request, username):
+        # get info about last transaction from Transaction
+        last_transaction = Transaction.objects.filter(phone_no=username)
+        return last_transaction.latest('id').status
+
+    def post(self, request, username):
+        if request.DATA['request'] == 'beep':
+            data = {'phone': request.DATA['phone'].replace('+234', '0'), 'request': request.DATA['request'], 'platform': 'online', 'method': 'FlexiRecharge', 'recipient': request.DATA['recipient'].replace('+234', '0')}
+        else:
+            data = {'phone': request.DATA['phone'].replace('+234', '0'), 'request': request.DATA['request'], 'platform': 'online', 'method': request.DATA['method'], 'recipient': request.DATA['recipient'].replace('+234', '0'), 'amount': request.DATA['amount']}
+
+        self.recharge(data)
+
+        return Response('Processing your request please wait...')
+
+    @task
+    def recharge(self, data):
+        OnlineTransfer(data)
+
+
 
 # Finally to expose django views use DjangoGateway
 agw = DjangoGateway({"ActionService.beepRequest": beepRequest,

@@ -36,3 +36,12 @@ def getSchedule():
     schedule = Schedule.objects.select_related('user').filter(date=start.date(), time__range=(start.time(), end.time()), status=True)
 
     return schedule
+
+
+def get_lost_schedule():
+    current_date_time = datetime.now()
+    current_time = current_date_time + timedelta(minutes=30)
+
+    lost_schedule = Schedule.objects.select_related('user').filter(date__lte=current_date_time.date(), time__lt=current_time.time(), status=True)
+
+    return lost_schedule

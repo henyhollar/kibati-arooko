@@ -24,9 +24,9 @@ class Scheduler(generics.RetrieveUpdateAPIView):
     lookup_field = 'user'
 
     def post_save(self, obj, created=False):
-        Sync.objects.create(method='update_schedule', model_id=obj.id)
+        Sync.objects.create(method='update_schedule', model_id=obj.id)      # sync into sync db
 
-        task_request(obj, 'www.arooko.ngrok.com', 'update_schedule')
+        task_request(obj, 'www.arooko.ngrok.com', 'update_schedule')    # will do it immediately unless network down
 
 
 #use celery to coordinate the schedule

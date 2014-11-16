@@ -3,16 +3,17 @@ from pyamf import AMF3
 from pyamf.remoting.client import RemotingService
 from message.views import message_as_email, message_as_sms
 from .models import Sync
-from scheduler.models import getSchedule
+from scheduler.models import getSchedule, get_lost_schedule
+from transaction.models import Methods
 
 import zmq.green as zmq
 from .utils import schedule, update_schedule, sync_down
-from datetime import datetime
+from datetime import datetime, timedelta
 from dateutil.rrule import *
 
 
 mtn = set(['0803', '0813', '0703', '0806', '0816', '0706', '0810', '0814', '0903'])
-eti = set(['0818', '0809', '0819', '0817'])
+eti = set(['0818', '0809', '0819', '0817', '0909'])
 zain = set(['0802', '0812', '0701', '0708', '0808'])
 glo = set(['0805', '0815', '0705', '0807', '0811'])
 
@@ -50,6 +51,19 @@ def task_request(obj, domain, method):
             gw = RemotingService(domain+'sync/', amf_version=AMF3)
             service = gw.getService('SyncService')
             http_data = service.update_wallet(obj)
+
+            return http_data
+        except Exception, e:
+            # set the admin phone nos as global variable in the settings and make message_as_sms() loop over the nos.
+            data = {'subject': 'Offline Registration Error', 'message': e, 'phone': '08137474080'}
+            message_as_email(data)
+            return
+
+    elif method == 'update_offline_wallet':
+        try:
+            gw = RemotingService(domain+'sync/', amf_version=AMF3)
+            service = gw.getService('SyncService')
+            http_data = service.update_offline_wallet(obj)
 
             return http_data
         except Exception, e:
@@ -138,7 +152,12 @@ def getdatetime(cdate, ctime):
 
 @periodic_task(crontab(minute='*/10'))
 def scheduler():
+    lost_sch = False
     querysets = schedule()
+    if not querysets:
+        querysets = get_lost_schedule()
+        lost_sch = True
+
     for item in querysets:
         #print datetime.date(item.date), datetime.time(item.time)
         cdatetime = getdatetime(datetime.date(item.date), datetime.time(item.time))
@@ -172,7 +191,7 @@ def scheduler():
             if sch_datetime is None:
                 return
 
-            item.date = sch_datetime
+            item.date = sch_datetime if lost_sch is False else (datetime.now() + timedelta(days=datetime.now().day))
             item.time = sch_datetime
 
             update_schedule(item)
@@ -197,6 +216,31 @@ def notification():
     #or check balance against earlier transaction with the same cid
     #if it is less by the amount requested, clear the status and report
 
+
+@task(retries=3, retry_delay=90)
+def get_balance():
+    pending_issues = Methods.issues.pending()
+    context = zmq.Context()
+    if pending_issues:
+        for issue in pending_issues:
+            if issue.cid in ['ussd#01', 'msg#02', 'sim#03', 'sim#04']:
+                network = 'Mtn'
+
+            elif issue.cid in ['www#05', 'www#15', 'www#25', 'www#35']:
+                network = 'Mobifin'
+
+            data = {'action': 'bal', 'network': network, 'cid': issue.cid}
+
+            pub_socket = context.socket(zmq.PUB)
+            pub_socket.bind("tcp://127.0.0.1:5558")
+
+            pub_socket.send_pyobj(data)
+            pub_socket.close()
+
+    else:
+        pass
+
+    context.term()
 
 # The interval between each freq iteration. For example, when using YEARLY, an interval of 2 means once every two years,
 # but with HOURLY, it means once every two hours. The default interval is 1.

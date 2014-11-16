@@ -20,7 +20,7 @@ ZAIN = [('37', '100'), ('55', '200'), ('56', '500'), ('57', '1000')]
 network = [('pad', 'pad'), ('zain', ''), ('eti', '08189091170'), ('pad', 'pad'), ('pad', 'pad'), ('mtn', '07069654477'), ('glo', '08111052510')]
 
 mtn = set(['0803','0813','0703','0806','0816','0706','0810','0814','0903'])
-eti = set(['0818','0809','0819','0817'])
+eti = set(['0818','0809','0819','0817','0909'])
 zain = set(['0802','0812','0701','0708','0808'])
 glo = set(['0805','0815','0705','0807','0811'])
 pad = set([''])
@@ -38,23 +38,20 @@ def check_status(f):
                 if 'stop' in data:
                         return f(req, data)
 
-                user = User.objects.get(username=data['phone'])
+                #user = User.objects.get(username=data['phone'])
+                user_behaviour = UserBehaviour(username=data['phone'])
+
                 if data['request'] == 'beep':
-                    data.update({'amount': user.default_amt})
-                hierarchy = user.hierarchy
-                permission = user.permission
+                    data.update({'amount': user_behaviour.default_amt, 'status': 'master'})
 
-                user_behaviour = UserBehaviour(obj=user)
+                if user_behaviour.get_hierarchy == 'slave':
+                    data.update({'master': user_behaviour.glue_to, 'status': 'slave'})
 
-                if hierarchy == 'slave':
-                    master = User.objects.get(id=user_behaviour.get_hierarchy())
-                    data.update({'master': master, 'status': 'slave'})
+                if user_behaviour.get_permission == 'downlink':
+                    data.update({'uplink': user_behaviour.plug_into, 'status': 'downlink'})
 
-                if permission == 'downlink':
-                    uplink = User.objects.get(id=user_behaviour.get_permission())
-                    data.update({'uplink': uplink, 'status': 'downlink'})
+                data.update({'user': user_behaviour._obj})
 
-                data.update({'user': user})
                 return f(req, data)
         return wrapper
 
@@ -79,7 +76,7 @@ def choose_values(f):
 
         data.update({'amount': card[-1]})  # find the difference in amount and refund
 
-        diff = float(card_amount) - float(data['amount'])
+        diff = abs(float(card_amount) - float(data['amount']))
         if diff:
             fund_data = data.copy()
             fund_data.update({'amount': diff})
@@ -208,20 +205,23 @@ class OnlineTransfer(object):
         """
         self.data = data
 
+        self.logger(self.data)  #i am logging this fast cos i want the frontend be able to get status of each transaction
+
         self.check_network()
 
-        self.logger(self.data)
         print self.data
         calculate(self.data)
 
         self.run()
 
     def check_network(self):
+        #ping offline here and update the logger with offline unreachable
         data = dict(Message='Test', method='EchoCheck', LoginId='28820081', PublicKey='53876806', Checksum='')
         mobifin_response = echo_check(data)
         print mobifin_response
         if [x[1] for x in mobifin_response if x[0] == 'Message'][0] != 'Test':
             #notify that it failed and they should try again
+            #update the logger with destination unreachable
             pass
 
     def run(self):
@@ -235,7 +235,9 @@ class OnlineTransfer(object):
             print batch_id
 
             command = dict(Email='', FromANI='',  method='FlexiRecharge', LoginId='28820081', RequestId=requestID, BatchId=batch_id, SystemServiceID=sys_id, ReferalNumber=phone, Amount=str(amount), PublicKey='53876806', Checksum='')
-            self.parse(phone, flexi_recharge(command))
+            self.data.update({'cid': 'www#000'})
+            self.parse(flexi_recharge(command))
+
         else:
             sys_id = '32'
             net = self.data['network']
@@ -244,45 +246,44 @@ class OnlineTransfer(object):
             print batch_id
 
             command = dict(Email='', FromANI='',  method='FixRecharge', LoginId='28820081', RequestId=requestID, BatchId=str(batch_id), SystemServiceID=sys_id, ReferalNumber=phone, PublicKey='53876806', Checksum='')
-            self.parse_fix(phone, fix_recharge(command))
+            self.data.update({'cid': 'www#001'})
+            self.parse(fix_recharge(command))
 
-    def parse(self, phone, res):
+    def parse(self, res):
         if [x[1] for x in res if x[0] == 'ResponseCode'][0] == '000':
-            data = dict(LoginId='28820081', TillDate='', PublicKey='53876806', method='ResellerBalance')
-            mobifin_response = reseller_balance(data)
-            if [x[1] for x in mobifin_response if x[0] == 'ResponseCode'][0] == '000':
-                balance = float([x[1] for x in mobifin_response if x[0] == 'CurrentBalance'][0])
-                trans = Transaction.objects.filter(Q(phone_no=phone) | Q(recipient=phone), status='pending', cid='www#000')
-                trans_id = trans.latest('id').id
-                trans.filter(id=trans_id).update(balance=balance, status='ON')
+            self.data.update({'status': '100', 'pay-load': '', 'balance': 0.111})
 
-            elif [x[1] for x in res if x[0] == 'ResponseCode'][0] != '000':
-                #notify that it failed and they should try again
-                self.refund(self.data)
-
-    def parse_fix(self, phone, res):
-        if [x[1] for x in res if x[0] == 'ResponseCode'][0] == '000':
-            pin = res[4][1].strip('{}').split(':')[1].strip('"')
-
-            sms_data = {'phone': self.data['phone'] if not 'recipient'in self.data else self.data['recipient'], 'message': 'Below is the pin you requested for: '+str(pin)}
-            message_as_sms(sms_data)
+            if self.data['method'] != 'FlexiRecharge':
+                self.data.update({'pay-load': res[4][1].strip('{}').split(':')[1].strip('"')})
+                sms_data = {'phone': self.data['phone'] if not 'recipient'in self.data else self.data['recipient'], 'message': 'Below is the pin you requested for: '+str(self.data['pay-load'])}
+                message_as_sms(sms_data)
 
             data = dict(LoginId='28820081', TillDate='', PublicKey='53876806', method='ResellerBalance')
             mobifin_response = reseller_balance(data)
             if [x[1] for x in mobifin_response if x[0] == 'ResponseCode'][0] == '000':
-                balance = float([x[1] for x in mobifin_response if x[0] == 'CurrentBalance'][0])
-                trans = Transaction.objects.filter(Q(phone_no=phone) | Q(recipient=phone), status='pending', cid='www#001')
-                trans_id = trans.latest('id').id
-                trans.filter(id=trans_id).update(balance=balance, pin=pin, status='ON')
+                self.data.update({'balance': float([x[1] for x in mobifin_response if x[0] == 'CurrentBalance'][0])})
 
-            elif [x[1] for x in res if x[0] == 'ResponseCode'][0] != '000':
-                #notify that it failed and they should try again
+        elif [x[1] for x in res if x[0] == 'ResponseCode'][0] != '000':
+            #notify that it failed and they should either pop a card or use offline transaction
+            if self.data['method'] == 'FlexiRecharge':
+                self.data.update({'status': '102', 'pay-load': '', 'balance': 0.111})
                 self.refund(self.data)
+            else:
+                # if this method is used and the service is down, pop card without asking the customer again
+                self.data.update({'status': '1020', 'pay-load': '', 'balance': 0.111})
+                self.calling_card(self.data)
+
+        self.logger_update(self.data)
 
     @check_status
     def logger(self, data):
         transaction = Transaction(phone_no=data['phone'], amount=data['amount'], cid=data['cid'], status='pending')
         transaction.save()
+
+    def logger_update(self, data):
+        trans = Transaction.objects.filter(Q(phone_no=data['phone']) | Q(recipient=data['phone']), status='pending', cid=data['cid'])
+        trans_id = trans.latest('id').id
+        trans.filter(id=trans_id).update(balance=data['balance'], status=data['status'], pin=data['pay-load'])
 
     def refund(self, data):
         user = User.objects.get(username=data['phone'])
@@ -293,6 +294,12 @@ class OnlineTransfer(object):
 
     def id_generator(self, size=6, chars=string.digits):
         return ''.join(random.choice(chars) for _ in range(size))
+
+    @choose_values  # will run first
+    @pop_card
+    def calling_card(self, data):
+        sms_data = {'phone': data['phone'] if not 'recipient'in data else data['recipient'], 'message': 'Below is the pin you requested for: '+str(data['pay-load'])}
+        message_as_sms(sms_data)
 
 
 def calculate(data):
@@ -317,7 +324,7 @@ def calculate(data):
         data.update({'amount': user_wallet.amount})
         new_wallet_amount = float(user_wallet.amount) - float(data['amount'])
 
-    elif 'slave' in data:
+    elif data['status'] == 'slave':
         wallet_to_update = Wallet.objects.filter(owner=data['master']['id']) if data['platform'] == 'online' else OfflineWallet.objects.get(owner=data['master']['id'])
 
         master_wallet = wallet_to_update.get(owner=data['master']['id'])
@@ -352,33 +359,35 @@ def retryTransaction(cid, status):
     import zmq.green as zmq
 
     context = zmq.Context()
+    try:
+        trans = Methods.objects.get(Q(status='pending') | Q(status='OFF'), cid=cid)
+        trans.status = 'retry' if status is None else 'ON'
+        trans.save()
 
-    trans = Methods.objects.get(Q(status='pending') | Q(status='OFF'), cid=cid)
-    trans.status = 'retry' if status is None else 'ON'
-    trans.save()
+        if trans and status != 'DISCARD':
+            if trans.recipient:
+                data = {'phone': trans.phone_no, 'recipient': trans.recipient, 'amount': trans.amount, 'request': 'c#m', 'retry': True}
+            else:
+                data = {'phone': trans.phone_no, 'amount': trans.amount, 'request': 'c#m', 'retry': True}
 
-    if trans and status != 'DISCARD':
-        if trans.recipient:
-            data = {'phone': trans.phone_no, 'recipient': trans.recipient, 'amount': trans.amount, 'request': 'c#m', 'retry': True}
-        else:
-            data = {'phone': trans.phone_no, 'amount': trans.amount, 'request': 'c#m', 'retry': True}
+            net = trans.phone_no[:4]
 
-        net = trans.phone_no[:4]
+            if net in mtn:
+                port = '6000'
+            elif net in eti:
+                port = '6010'
+            elif net in glo:
+                port = '6020'
+            elif net in zain:
+                port = '6030'
 
-        if net in mtn:
-            port = '6000'
-        elif net in eti:
-            port = '6010'
-        elif net in glo:
-            port = '6020'
-        elif net in zain:
-            port = '6030'
-
-        push_socket = context.socket(zmq.PUSH)
-        push_socket.connect("tcp://localhost:"+port)
-        push_socket.send_pyobj(data)
-        push_socket.close()
-        context.term()
+            push_socket = context.socket(zmq.PUSH)
+            push_socket.connect("tcp://localhost:"+port)
+            push_socket.send_pyobj(data)
+            push_socket.close()
+            context.term()
+    except ObjectDoesNotExist:
+        pass
 
 
 def re_fund(data):
